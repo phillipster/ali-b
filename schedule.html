@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weekly Schedule</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .schedule {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .day {
+      margin-bottom: 1.5rem;
+    }
+    .day h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #007BFF;
+    }
+    .event {
+      padding-left: 1rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>My Weekly Schedule</h1>
+  <div class="schedule" id="schedule"></div>
+
+  <script>
+    const scheduleData = {
+      Monday: ["9am - Team Meeting", "1pm - Project Work", "4pm - Gym"],
+      Tuesday: ["10am - Class", "2pm - Lab", "6pm - Study"],
+      Wednesday: ["9am - Client Call", "12pm - Lunch with Mentor", "3pm - Research"],
+      Thursday: ["11am - Presentation Prep", "1pm - Workshop", "5pm - Run"],
+      Friday: ["10am - Weekly Review", "2pm - Free Time"],
+      Saturday: ["10am - Volunteer", "3pm - Friends"],
+      Sunday: ["Rest Day"]
+    };
+
+    const scheduleContainer = document.getElementById("schedule");
+
+    for (const day in scheduleData) {
+      const dayDiv = document.createElement("div");
+      dayDiv.className = "day";
+
+      const dayTitle = document.createElement("h2");
+      dayTitle.textContent = day;
+
+      dayDiv.appendChild(dayTitle);
+
+      scheduleData[day].forEach(event => {
+        const eventP = document.createElement("p");
+        eventP.className = "event";
+        eventP.textContent = `• ${event}`;
+        dayDiv.appendChild(eventP);
+      });
+
+      scheduleContainer.appendChild(dayDiv);
+    }
+  </script>
+</body>
+</html>
