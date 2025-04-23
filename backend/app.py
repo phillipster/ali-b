@@ -9,7 +9,7 @@ app.config.update({
   'MYSQL_HOST':     'localhost',
   'MYSQL_USER':     'root',
   'MYSQL_PASSWORD': '',
-  'MYSQL_DB':       'classreg'
+  'MYSQL_DB':       'albert'
 })
 db = MySQLdb.connect(
   host=app.config['MYSQL_HOST'],
