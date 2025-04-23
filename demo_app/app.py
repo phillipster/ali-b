@@ -22,8 +22,13 @@ def api_items():
 
 @app.route("/")
 def home():
-    # serve our React‐powered page
     return render_template("index.html")
 
+
+@app.route("/campuses")
+def campuses():
+    return render_template("campuses.html")
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
