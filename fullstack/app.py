@@ -47,7 +47,7 @@ def course_search():
       ON dr.courseID   = c.courseID
     """
     args = []
-
+    #lol
     # ─── 3) Append WHERE clauses for each filter ───────────────────
     if prof_name:
         sql += " AND p.prof_name LIKE %s"
