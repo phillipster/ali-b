@@ -1,4 +1,37 @@
+ALTER TABLE user
+ADD COLUMN password VARCHAR(20);
 
+UPDATE albert.user
+SET password = 'chicken';
+SELECT * FROM albert.user;
+
+CREATE USER 'ali-b-admin'@'localhost' IDENTIFIED BY 'FeldmanShahHsu';
+SELECT * FROM mysql.user;
+
+CREATE ROLE student;
+GRANT SELECT ON albert.courses TO student;
+GRANT SELECT ON albert.section TO student;
+GRANT SELECT ON albert.professor TO student;
+GRANT SELECT ON albert.campus TO student;
+GRANT SELECT ON albert.enrollment TO student;
+GRANT SELECT ON albert.department TO student;
+
+CREATE ROLE faculty;
+GRANT SELECT ON albert.courses TO faculty;
+GRANT SELECT ON albert.section TO faculty;
+GRANT SELECT ON albert.professor TO faculty;
+GRANT SELECT ON albert.campus TO faculty;
+GRANT SELECT ON albert.department TO faculty;
+
+GRANT INSERT, UPDATE, DELETE ON albert.courses TO faculty;
+GRANT INSERT, UPDATE, DELETE ON albert.section TO faculty;
+GRANT INSERT, UPDATE, DELETE ON albert.professor TO faculty;
+
+CREATE USER 'test'@'localhost' IDENTIFIED BY 'password';
+GRANT faculty TO 'test'@'localhost';
+GRANT student TO 'test'@'localhost';
+REVOKE faculty FROM 'test'@'localhost';
+SHOW GRANTS FOR 'test'@'localhost';
 --
 -- Database: `albert`
 --
@@ -1732,7 +1765,7 @@ INSERT INTO professor (`professorID`, `prof_name`, `prof_email`) VALUES
 (95, 'Jeff Brenneman', 'jsb790@nyu.edu'),
 (96, 'Chrystanyaa Brown', 'chrystanyaa@nyu.edu'),
 (97, 'Shaina Brown', 'sb9653@nyu.edu'),
-(98, 'Sa\'Haara Bryant', 'sjb728@nyu.edu'),
+(98, 'Sa\Haara Bryant', 'sjb728@nyu.edu'),
 (99, 'Todd Bryant', 'tjb387@nyu.edu'),
 (100, 'Justin Bui', 'justinbui@nyu.edu'),
 (101, 'Mike Burgo', 'mb4121@nyu.edu'),
@@ -1822,7 +1855,7 @@ INSERT INTO professor (`professorID`, `prof_name`, `prof_email`) VALUES
 (185, 'Divina Cruz-Cadiz', 'dina.cruz@nyu.edu'),
 (186, 'Wenqi Cui', 'wenqicui@nyu.edu'),
 (187, 'Dariusz Czarkowski', 'dc1677@nyu.edu'),
-(188, 'Michael D\'Emic', 'mtd299@nyu.edu'),
+(188, 'Michael D\Emic', 'mtd299@nyu.edu'),
 (189, 'Kate Danho', 'kld9@nyu.edu'),
 (190, 'Mohammed Daqaq', 'mfd6@nyu.edu'),
 (191, 'Frank DarConte', 'fd508@nyu.edu'),
@@ -2251,7 +2284,7 @@ INSERT INTO professor (`professorID`, `prof_name`, `prof_email`) VALUES
 (614, 'Frederick Novomestky', ''),
 (615, 'Yaw Nyarko', 'yn1@nyu.edu'),
 (616, 'Michael O’Neill', 'mjo9012@nyu.edu'),
-(617, 'Conall O\'Sullivan', ''),
+(617, 'Conall O\Sullivan', ''),
 (618, 'Aspen Olmsted', 'ao56@nyu.edu'),
 (619, 'Julia Louise Olson', 'jlo6@nyu.edu'),
 (620, 'Jay Om', 'jo729@nyu.edu'),
