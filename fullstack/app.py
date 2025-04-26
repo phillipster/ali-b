@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, render_template, send_from_directory
 import mysql.connector
 
+
+
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
 
@@ -13,6 +15,17 @@ def get_db_conn():
     )
 
 
+@app.route("/api/campus")
+def api_items():
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM campus")
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
 @app.route("/")
 def index():
     """Serve the static index.html file."""
@@ -20,7 +33,7 @@ def index():
 
 
 @app.route("/<page>")
-def load_template(page):
+def load_page(page):
     return render_template(f"{page}.html")
 
 
