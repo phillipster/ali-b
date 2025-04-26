@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Course Search</title>
+  <style>
+    body { display: flex; font-family: sans-serif; }
+    aside { width: 220px; background: #f7f7f7; padding: 1em; }
+    main  { flex: 1; padding: 1em; }
+    aside div { margin-bottom: 0.8em; }
+    table { width:100%; border-collapse: collapse; margin-top:1em; }
+    th, td { border:1px solid #ddd; padding:0.5em; }
+    th { background:#eee; }
+  </style>
+</head>
+<body>
+
+  <aside>
+    <h2>Filters</h2>
+    <form method="get">
+      <div>
+        <label>Professor<br>
+          <input
+            name="prof_name"
+            value="{{ filters.get('prof_name','') }}"
+          >
+        </label>
+      </div>
+      <div>
+        <label>Min Credits<br>
+          <input
+            type="number"
+            name="min_credits"
+            style="width:4em"
+            value="{{ filters.get('min_credits','') }}"
+          >
+        </label>
+      </div>
+      <div>
+        <label>Max Credits<br>
+          <input
+            type="number"
+            name="max_credits"
+            style="width:4em"
+            value="{{ filters.get('max_credits','') }}"
+          >
+        </label>
+      </div>
+      <div>
+        <label>
+          <input
+            type="checkbox"
+            name="degree_req"
+            {% if filters.get('degree_req') %}checked{% endif %}
+          >
+          Only degree requirements
+        </label>
+      </div>
+      <div>
+        <button type="submit">Apply</button>
+        <button type="reset" onclick="window.location='?';return false;">
+          Clear
+        </button>
+      </div>
+    </form>
+  </aside>
+
+  <main>
+    <h1>Courses{% if results %} ({{ results|length }}){% endif %}</h1>
+
+    {% if results %}
+      <table>
+        <thead>
+          <tr>
+            <th>Course ID</th>
+            <th>Title</th>
+            <th>Credits</th>
+            <th>Professor</th>
+            <th>Required?</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in results %}
+          <tr>
+            <td>{{ row.courseID }}</td>
+            <td>{{ row.course_name }}</td>
+            <td>{{ row.credits }}</td>
+            <td>{{ row.prof_name }}</td>
+            <td>{{ 'Yes' if row.is_degree_requirement else 'No' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p><em>No courses match those filters.</em></p>
+    {% endif %}
+  </main>
+
+</body>
+</html>
