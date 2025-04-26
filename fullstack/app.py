@@ -13,26 +13,15 @@ def get_db_conn():
     )
 
 
-@app.route("/api/campus")
-def api_items():
-    conn = get_db_conn()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM campus")
-    items = cursor.fetchall()
-    cursor.close();
-    conn.close()
-    return jsonify(items)
-
-
 @app.route("/")
 def index():
     """Serve the static index.html file."""
     return send_from_directory('static', 'pages/index.html')
 
 
-@app.route("/campuses")
-def campuses():
-    return render_template("campuses.html")
+@app.route("/<page>")
+def load_template(page):
+    return render_template(f"{page}.html")
 
 
 if __name__ == "__main__":

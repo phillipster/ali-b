@@ -35,11 +35,6 @@
         <h1>Campuses</h1>
         <ul>
           {campuses.map(c => (
-                  /*
-                    Use whatever your JSON returns as the ID field:
-                    if the column is campusID, use c.campusID;
-                    if it's id, use c.id.
-                  */
               <div key={c.campusID /* or c.id */}>
                 {c.campus_name}
               </div>
