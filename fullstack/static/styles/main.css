@@ -49,7 +49,7 @@ h1 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  border: 1em;
+  border: 1em solid transparent;
 
 }
 
@@ -73,4 +73,9 @@ h1 {
 .campus-item a {
   color: #a640f8;
   font-size: 20px;
+}
+
+label[for="schoolFilter"] {
+  margin: 1em;
+  border: 1em solid transparent;
 }

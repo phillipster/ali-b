@@ -12,7 +12,6 @@
   <div class="topnav">
     <a href="/">Home</a>
     <a href="/page/campuses">Campuses</a>
-    <a href="/page/school">Schools</a>
     <a class="active" href="/page/degree">Degrees</a>
     <a href="/page/department">Departments</a>
     <a href="/page/professor">Staff Directory</a>
@@ -27,6 +26,7 @@
     function App() {
       const [degrees, setdegrees] = React.useState([]);
       const [selectedSchool, setSelectedSchool] = React.useState('');
+      const [schools, setSchools] = React.useState([]);
 
       React.useEffect(() => {
         const url = selectedSchool ? `/api/degrees?schoolID=${selectedSchool}` : '/api/degrees';
@@ -35,6 +35,13 @@
           .then(setdegrees)
           .catch(console.error);
       }, [selectedSchool]);
+
+      React.useEffect(() => {
+        fetch("/api/schools")
+          .then(r => r.json())
+          .then(setSchools)
+          .catch(console.error);
+      }, []);
 
       const handleSchoolChange = (event) => {
         setSelectedSchool(event.target.value);
@@ -46,11 +53,9 @@
           <label htmlFor="schoolFilter">Filter by School:</label>
           <select id="schoolFilter" onChange={handleSchoolChange} value={selectedSchool}>
             <option value="">All Schools</option>
-            {/* You'll need to fetch the schools and map them here */}
-            {/* Example: */}
-            {/* {schools.map(school => (
+            {schools.map(school => (
               <option key={school.schoolID} value={school.schoolID}>{school.school_name}</option>
-            ))} */}
+            ))}
           </select>
           <div className="campus-grid">
             {degrees.map(degree => (
