@@ -7,7 +7,6 @@
     body {
       font-family: Arial, sans-serif;
       background: #f5f7fa;
-      padding: 1rem;
     }
     h1 {
       text-align: center;
@@ -69,116 +68,130 @@
       font-weight: bold;
     }
   </style>
+  <link rel="stylesheet" href="../static/styles/main.css">
 </head>
 <body>
-  <h1>My Weekly Schedule</h1>
-  <div class="calendar" id="calendar"></div>
-
-  <div class="form-container">
-    <h2>Add an Event</h2>
-    <label for="dayInput">Day</label>
-    <select id="dayInput">
-      <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option>
-      <option>Friday</option><option>Saturday</option><option>Sunday</option>
-    </select>
-
-    <label for="timeInput">Start Time (24hr format, e.g. 14 for 2PM)</label>
-    <input type="number" id="timeInput" min="7" max="21" placeholder="Enter hour (7-21)">
-
-    <label for="durationInput">Duration (in hours)</label>
-    <input type="number" id="durationInput" min="1" max="3" placeholder="1">
-
-    <label for="eventInput">Event Description</label>
-    <input type="text" id="eventInput" placeholder="Enter event title">
-
-    <button onclick="addEvent()">Add Event</button>
+    <div class="topnav">
+    <a href="/">Home</a>
+    <a href="/page/campuses">Campuses</a>
+    <a href="/page/school">Schools</a>
+    <a href="/page/degree">Degrees</a>
+    <a class="active" href="/page/department">Departments</a>
+    <a href="/page/professor">Staff Directory</a>
+    <a href="/course_search">Course Search</a>
+    <a href="/page/schedule">Schedule Builder</a>
+    <a href="/page/login">Login</a>
   </div>
+  <div style="padding: 1rem;">
+      <h1>My Weekly Schedule</h1>
+    <div class="calendar" id="calendar"></div>
 
-  <script>
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    const hours = Array.from({length: 15}, (_, i) => i + 7); // 7 AM to 9 PM
+    <div class="form-container">
+      <h2>Add an Event</h2>
+      <label for="dayInput">Day</label>
+      <select id="dayInput">
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option>
+        <option>Friday</option><option>Saturday</option><option>Sunday</option>
+      </select>
 
-    let events = [
-      { day: "Monday", time: 8, duration: 1, title: "Hero Robot Meeting" },
-      { day: "Monday", time: 10, duration: 1, title: "Sentry Robot" },
-      { day: "Wednesday", time: 13, duration: 1, title: "Standard Robot Meeting" },
-      { day: "Friday", time: 10, duration: 1, title: "Mech Meeting" },
-      { day: "Friday", time: 15, duration: 1, title: "Lab Hours" }
-    ];
+      <label for="timeInput">Start Time (24hr format, e.g. 14 for 2PM)</label>
+      <input type="number" id="timeInput" min="7" max="21" placeholder="Enter hour (7-21)">
 
-    const calendar = document.getElementById("calendar");
+      <label for="durationInput">Duration (in hours)</label>
+      <input type="number" id="durationInput" min="1" max="3" placeholder="1">
 
-    function renderCalendar() {
-      calendar.innerHTML = "";
-      calendar.appendChild(document.createElement("div"));
+      <label for="eventInput">Event Description</label>
+      <input type="text" id="eventInput" placeholder="Enter event title">
 
-      days.forEach(day => {
-        const dayDiv = document.createElement("div");
-        dayDiv.className = "day-header";
-        dayDiv.textContent = day;
-        calendar.appendChild(dayDiv);
-      });
+      <button onclick="addEvent()">Add Event</button>
+    </div>
 
-      hours.forEach((hour, i) => {
-        const labelDiv = document.createElement("div");
-        labelDiv.className = "time-label";
-        labelDiv.textContent = `${(hour % 12 === 0 ? 12 : hour % 12)} ${(hour < 12 ? "AM" : "PM")}`;
-        labelDiv.style.gridRow = `${i + 2}`;
-        calendar.appendChild(labelDiv);
+    <script>
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const hours = Array.from({length: 15}, (_, i) => i + 7); // 7 AM to 9 PM
 
-        for (let j = 0; j < 7; j++) {
-          const cell = document.createElement("div");
-          cell.style.borderTop = "1px solid #eee";
-          cell.style.borderLeft = "1px solid #eee";
-          cell.style.gridRow = `${i + 2}`;
-          cell.style.gridColumn = `${j + 2}`;
-          calendar.appendChild(cell);
-        }
-      });
+      let events = [
+        { day: "Monday", time: 8, duration: 1, title: "Hero Robot Meeting" },
+        { day: "Monday", time: 10, duration: 1, title: "Sentry Robot" },
+        { day: "Wednesday", time: 13, duration: 1, title: "Standard Robot Meeting" },
+        { day: "Friday", time: 10, duration: 1, title: "Mech Meeting" },
+        { day: "Friday", time: 15, duration: 1, title: "Lab Hours" }
+      ];
 
-      events.forEach((event, index) => {
-        const dayIndex = days.indexOf(event.day) + 2;
-        const startRow = event.time - 5;
-        const endRow = startRow + event.duration;
+      const calendar = document.getElementById("calendar");
 
-        const eventDiv = document.createElement("div");
-        eventDiv.className = "event";
-        eventDiv.textContent = event.title;
-        eventDiv.style.gridColumn = dayIndex;
-        eventDiv.style.gridRow = `${startRow} / ${endRow}`;
+      function renderCalendar() {
+        calendar.innerHTML = "";
+        calendar.appendChild(document.createElement("div"));
 
-        eventDiv.title = "Click to delete";
-        eventDiv.onclick = () => {
-          if (confirm(`Delete event: ${event.title}?`)) {
-            events.splice(index, 1);
-            renderCalendar();
+        days.forEach(day => {
+          const dayDiv = document.createElement("div");
+          dayDiv.className = "day-header";
+          dayDiv.textContent = day;
+          calendar.appendChild(dayDiv);
+        });
+
+        hours.forEach((hour, i) => {
+          const labelDiv = document.createElement("div");
+          labelDiv.className = "time-label";
+          labelDiv.textContent = `${(hour % 12 === 0 ? 12 : hour % 12)} ${(hour < 12 ? "AM" : "PM")}`;
+          labelDiv.style.gridRow = `${i + 2}`;
+          calendar.appendChild(labelDiv);
+
+          for (let j = 0; j < 7; j++) {
+            const cell = document.createElement("div");
+            cell.style.borderTop = "1px solid #eee";
+            cell.style.borderLeft = "1px solid #eee";
+            cell.style.gridRow = `${i + 2}`;
+            cell.style.gridColumn = `${j + 2}`;
+            calendar.appendChild(cell);
           }
-        };
+        });
 
-        calendar.appendChild(eventDiv);
-      });
-    }
+        events.forEach((event, index) => {
+          const dayIndex = days.indexOf(event.day) + 2;
+          const startRow = event.time - 5;
+          const endRow = startRow + event.duration;
 
-    function addEvent() {
-      const day = document.getElementById("dayInput").value;
-      const time = parseInt(document.getElementById("timeInput").value);
-      const duration = parseInt(document.getElementById("durationInput").value);
-      const title = document.getElementById("eventInput").value.trim();
+          const eventDiv = document.createElement("div");
+          eventDiv.className = "event";
+          eventDiv.textContent = event.title;
+          eventDiv.style.gridColumn = dayIndex;
+          eventDiv.style.gridRow = `${startRow} / ${endRow}`;
 
-      if (!day || isNaN(time) || isNaN(duration) || !title) {
-        alert("Please fill out all fields correctly.");
-        return;
+          eventDiv.title = "Click to delete";
+          eventDiv.onclick = () => {
+            if (confirm(`Delete event: ${event.title}?`)) {
+              events.splice(index, 1);
+              renderCalendar();
+            }
+          };
+
+          calendar.appendChild(eventDiv);
+        });
       }
 
-      events.push({ day, time, duration, title });
-      renderCalendar();h
+      function addEvent() {
+        const day = document.getElementById("dayInput").value;
+        const time = parseInt(document.getElementById("timeInput").value);
+        const duration = parseInt(document.getElementById("durationInput").value);
+        const title = document.getElementById("eventInput").value.trim();
 
-      document.getElementById("timeInput").value = "";
-      document.getElementById("durationInput").value = "";
-      document.getElementById("eventInput").value = "";
-    }
+        if (!day || isNaN(time) || isNaN(duration) || !title) {
+          alert("Please fill out all fields correctly.");
+          return;
+        }
 
-    renderCalendar();
-  </script>
+        events.push({ day, time, duration, title });
+        renderCalendar();h
+
+        document.getElementById("timeInput").value = "";
+        document.getElementById("durationInput").value = "";
+        document.getElementById("eventInput").value = "";
+      }
+
+      renderCalendar();
+    </script>
+  </div>
 </body>
 </html>

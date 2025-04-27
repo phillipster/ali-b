@@ -118,17 +118,16 @@ def index():
     return send_from_directory('static', 'pages/index.html')
 
 
-
 @app.route("/course_search")
 def course_search():
     # 1) Read filters
     prof_name = request.args.get("prof_name", "").strip() or None
-    min_cred  = request.args.get("min_credits", type=int)
-    max_cred  = request.args.get("max_credits", type=int)
+    min_cred = request.args.get("min_credits", type=int)
+    max_cred = request.args.get("max_credits", type=int)
     degree_id = request.args.get("degree_id", type=int)
 
     conn = get_db_conn()
-    cur  = conn.cursor(dictionary=True)
+    cur = conn.cursor(dictionary=True)
 
     # 2) Always fetch the list of degrees for the dropdown
     cur.execute("SELECT degreeID, degree_name FROM degree")
@@ -199,7 +198,7 @@ def load_page(page):
 def api_items():
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM campus")
+    cursor.execute("SELECT * FROM campus WHERE campusID!=18")
     items = cursor.fetchall()
     cursor.close();
     conn.close()
