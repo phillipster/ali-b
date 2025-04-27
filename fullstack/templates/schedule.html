@@ -1,87 +1,178 @@
+<!-- templates/schedule_maker.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Weekly Schedule</title>
+  <title>Schedule Maker — Week View</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fa;
-      padding: 2rem;
+    body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; display: flex; }
+    aside { width: 300px; background: #fff; padding: 1rem; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+    main  { flex: 1; padding: 1rem; }
+    h1 { text-align: center; margin-top: 0; }
+    .filters label { display: block; margin-top: 1rem; font-weight: bold; }
+    .filters input, .filters select, .filters button {
+      width: 100%; padding: 0.5rem; margin-top: 0.25rem; box-sizing: border-box;
     }
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-    .schedule {
-      max-width: 600px;
+    .calendar {
+      display: grid;
+      grid-template-columns: 80px repeat(7, 1fr);
+      grid-template-rows: 40px repeat(15, 60px);
+      gap: 0;
+      border: 1px solid #ccc;
+      background: #fff;
+      max-width: 1000px;
       margin: auto;
-      background: white;
-      padding: 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-    .day {
-      margin-bottom: 1.5rem;
+    .day-header {
+      background: #f0f4f8;
+      text-align: center;
+      font-weight: bold;
+      border-left: 1px solid #ccc;
+      border-bottom: 1px solid #ccc;
+      display: flex; align-items: center; justify-content: center;
     }
-    .day h2 {
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-      color: #007BFF;
+    .time-label {
+      text-align: right;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      color: #666;
+      border-top: 1px solid #eee;
+      border-right: 1px solid #ccc;
+      display: flex; align-items: center; justify-content: flex-end;
+    }
+    .cell {
+      border-top: 1px solid #eee;
+      border-left: 1px solid #eee;
     }
     .event {
-      padding-left: 1rem;
-      color: #555;
+      background: #4a90e2;
+      color: white;
+      padding: 0.3rem;
+      margin: 1px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      position: relative;
+      cursor: pointer;
     }
   </style>
-  <link rel="stylesheet" href="../static/styles/main.css">
 </head>
 <body>
-  <div class="topnav">
-    <a href="/">Home</a>
-    <a href="/page/campuses">Campuses</a>
-    <a href="/page/school">Schools</a>
-    <a href="/page/degree">Degrees</a>
-    <a href="/page/department">Departments</a>
-    <a href="/page/professor">Staff Directory</a>
-    <a href="/course_search">Course Search</a>
-    <a class="active" href="/page/schedule">Schedule Builder</a>
-    <a href="/page/login">Login</a>
-  </div>
-  <h1>My Weekly Schedule</h1>
-  <div class="schedule" id="schedule"></div>
+
+  <aside>
+    <h2>Filter Sections</h2>
+    <form method="get" class="filters" action="{{ url_for('schedule_maker') }}">
+      <label for="p_department">Department</label>
+      <input id="p_department" name="p_department"
+             value="{{ filters.get('p_department','') }}">
+
+      <label for="p_courseID">Course ID</label>
+      <input id="p_courseID" name="p_courseID"
+             value="{{ filters.get('p_courseID','') }}">
+
+      <label for="p_professor">Professor</label>
+      <input id="p_professor" name="p_professor"
+             value="{{ filters.get('p_professor','') }}">
+
+      <label for="p_min_credits">Min Credits</label>
+      <input type="number" id="p_min_credits" name="p_min_credits"
+             value="{{ filters.get('p_min_credits','') }}">
+
+      <label for="p_max_credits">Max Credits</label>
+      <input type="number" id="p_max_credits" name="p_max_credits"
+             value="{{ filters.get('p_max_credits','') }}">
+
+      <label for="p_campus_available">Campus</label>
+      <select id="p_campus_available" name="p_campus_available">
+        <option value="">Any</option>
+        {% for c in campuses %}
+          <option value="{{ c }}"
+            {% if filters.get('p_campus_available','') == c %}selected{% endif %}>
+            {{ c }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <button type="submit">Search</button>
+      <button type="reset" onclick="location='?';">Clear</button>
+    </form>
+  </aside>
+
+  <main>
+    <h1>My Weekly Schedule</h1>
+    <div class="calendar" id="calendar"></div>
+  </main>
 
   <script>
-    const scheduleData = {
-      Monday: ["9am - Team Meeting", "1pm - Project Work", "4pm - Gym"],
-      Tuesday: ["10am - Class", "2pm - Lab", "6pm - Study"],
-      Wednesday: ["9am - Client Call", "12pm - Lunch with Mentor", "3pm - Research"],
-      Thursday: ["11am - Presentation Prep", "1pm - Workshop", "5pm - Run"],
-      Friday: ["10am - Weekly Review", "2pm - Free Time"],
-      Saturday: ["10am - Volunteer", "3pm - Friends"],
-      Sunday: ["Rest Day"]
-    };
+    // days and hours grid
+    const days  = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const hours = Array.from({length:15}, (_,i)=> i+7);  // 7AM–9PM
 
-    const scheduleContainer = document.getElementById("schedule");
+    // pull your enrolled sections from the back-end
+    // each `e` needs: e.day (e.g. "Monday"), e.time_start= "HH:MM:SS", e.time_end
+    const schedule = {{ schedule|tojson }};
 
-    for (const day in scheduleData) {
-      const dayDiv = document.createElement("div");
-      dayDiv.className = "day";
+    // normalize into calendar events
+    const events = schedule.map(e => {
+      const startHour = parseInt(e.time_start.split(":")[0]);
+      const endHour   = parseInt(e.time_end.split(":")[0]);
+      return {
+        day: days[new Date(e.dates).getDay()-1] /*or supply e.day directly*/,
+        time: startHour,
+        duration: endHour - startHour,
+        title: `${e.courseID}: ${e.course_name}`
+      };
+    });
 
-      const dayTitle = document.createElement("h2");
-      dayTitle.textContent = day;
+    const calendar = document.getElementById("calendar");
 
-      dayDiv.appendChild(dayTitle);
+    function renderCalendar() {
+      calendar.innerHTML = "";
+      // empty corner
+      calendar.appendChild(document.createElement("div"));
 
-      scheduleData[day].forEach(event => {
-        const eventP = document.createElement("p");
-        eventP.className = "event";
-        eventP.textContent = `• ${event}`;
-        dayDiv.appendChild(eventP);
+      // day headers
+      days.forEach(d => {
+        const div = document.createElement("div");
+        div.className = "day-header";
+        div.textContent = d;
+        calendar.appendChild(div);
       });
 
-      scheduleContainer.appendChild(dayDiv);
+      // time labels + empty cells
+      hours.forEach((h,i) => {
+        const label = document.createElement("div");
+        label.className = "time-label";
+        label.textContent = `${h%12||12}${h<12?"AM":"PM"}`;
+        label.style.gridRow    = i+2;
+        label.style.gridColumn = 1;
+        calendar.appendChild(label);
+
+        for(let j=0;j<7;j++){
+          const cell = document.createElement("div");
+          cell.className     = "cell";
+          cell.style.gridRow    = i+2;
+          cell.style.gridColumn = j+2;
+          calendar.appendChild(cell);
+        }
+      });
+
+      // place events
+      events.forEach(ev => {
+        const dayIndex = days.indexOf(ev.day);
+        if (dayIndex < 0) return;  // skip if day not found
+        const startRow = ev.time - 5;  // 7AM => row 2
+        const endRow   = startRow + ev.duration;
+
+        const div = document.createElement("div");
+        div.className = "event";
+        div.textContent = ev.title;
+        div.style.gridColumn = dayIndex + 2;
+        div.style.gridRow    = `${startRow} / ${endRow}`;
+        calendar.appendChild(div);
+      });
     }
+
+    renderCalendar();
   </script>
 </body>
 </html>

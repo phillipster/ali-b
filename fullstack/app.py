@@ -102,6 +102,10 @@ def login():
             error = 'Invalid username, password, or selected role'
     return render_template('login.html', error=error)
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/dashboard')
 def dashboard():
@@ -120,62 +124,81 @@ def index():
 
 @app.route("/course_search")
 def course_search():
-    # ─── 1) Read filters or default to None ───────────────────────
+    # 1) Read filters
     prof_name = request.args.get("prof_name", "").strip() or None
     min_cred = request.args.get("min_credits", type=int)
     max_cred = request.args.get("max_credits", type=int)
-    degree_req = request.args.get("degree_req")  # "yes", "no", or None
+    degree_id = request.args.get("degree_id", type=int)
 
-    # ─── 2) Build base SQL + args list ────────────────────────────
-    sql = """
-    SELECT 
-      c.courseID, c.course_name, c.credits,
-      p.prof_name, dr.courseID AS is_degree_requirement
-
-    FROM courses c
-    JOIN section s      ON s.courseID    = c.courseID
-    JOIN professor p    ON s.professorID  = p.professorID
-    LEFT JOIN degree_requirements dr 
-      ON dr.courseID   = c.courseID
-    """
-    args = []
-    #lol
-    # ─── 3) Append WHERE clauses for each filter ───────────────────
-    if prof_name:
-        sql += " AND p.prof_name LIKE %s"
-        args.append(f"%{prof_name}%")
-    if min_cred is not None:
-        sql += " AND c.credits >= %s"
-        args.append(min_cred)
-    if max_cred is not None:
-        sql += " AND c.credits <= %s"
-        args.append(max_cred)
-    if degree_req:
-        # checkbox sends degree_req="on"
-        sql += " AND dr.courseID IS NOT NULL"
-    elif degree_req == "no":
-        sql += " AND (dr.required = FALSE OR dr.required IS NULL)"
-
-    # ─── 4) Final ordering ────────────────────────────────────────
-    sql += " ORDER BY c.course_name"
-
-    # ─── 5) Execute and fetch ─────────────────────────────────────
     conn = get_db_conn()
-    cur  = conn.cursor(dictionary=True)
-    cur.execute(sql, args)
-    results = cur.fetchall()
-    cur.close(); conn.close()
+    cur = conn.cursor(dictionary=True)
 
-    # ─── 6) Render Jinja template, passing both filters & results ─
+    # 2) Always fetch the list of degrees for the dropdown
+    cur.execute("SELECT degreeID, degree_name FROM degree")
+    degrees = cur.fetchall()
+
+    # 3) Build & run the **courses** query (no section/professor join here)
+    course_sql = """
+      SELECT c.courseID, c.course_name, c.credits
+      FROM courses c
+    """
+    course_args = []
+
+    # only join degree_requirements if degree_id filter set
+    if degree_id:
+        course_sql += " JOIN degree_requirements dr ON dr.courseID = c.courseID"
+        course_sql += " WHERE dr.degreeID = %s"
+        course_args.append(degree_id)
+
+    # other filters still apply to courses
+    if min_cred is not None:
+        course_sql += " WHERE c.credits >= %s";
+        course_args.append(min_cred)
+    if max_cred is not None:
+        course_sql += " WHERE c.credits <= %s";
+        course_args.append(max_cred)
+
+    course_sql += " ORDER BY c.course_name"
+    cur.execute(course_sql, course_args)
+    courses = cur.fetchall()
+
+    # 4) Conditionally fetch **sections** (+ professor) only if prof_name
+    sections = []
+    print(prof_name)
+    if prof_name:
+        sec_sql = """
+          SELECT DISTINCT 
+            c.courseID, c.course_name, c.credits,
+            p.prof_name
+          FROM section s
+          JOIN courses    c ON s.courseID    = c.courseID
+          JOIN professor p ON s.professorID  = p.professorID
+          WHERE p.prof_name LIKE %s
+        """
+        sec_args = [f"%{prof_name}%"]
+        cur.execute(sec_sql, sec_args)
+        sections = cur.fetchall()
+
+    cur.close()
+    conn.close()
+    print("Sections: ", sections)
+
+    # 5) Render all three datasets (courses, degrees, maybe sections)
     return render_template(
       "course_search.html",
-      filters=request.args,   # so the form stays populated
-      results=results
+      degrees=degrees,
+      filters=request.args,
+      courses=courses,
+      sections=sections     # will be empty if prof_name not set
     )
 
 
 @app.route("/page/<page>")
 def load_page(page):
+    if page == "schedule":
+        return schedule_maker()
+
+    # otherwise render the plain template
     return render_template(f"{page}.html")
 
 
@@ -183,11 +206,148 @@ def load_page(page):
 def api_items():
     conn = get_db_conn()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM campus")
+    cursor.execute("SELECT * FROM campus WHERE campusID!=18")
     items = cursor.fetchall()
     cursor.close();
     conn.close()
     return jsonify(items)
+
+
+@app.route("/api/schools")
+def school_items():
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM school")
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
+@app.route("/api/degrees")
+def degree_items():
+    school_id = request.args.get('schoolID')
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    sql = "SELECT * FROM degree"
+    if school_id:
+        sql += " WHERE schoolID = %s"
+        cursor.execute(sql, (school_id,))
+    else:
+        cursor.execute(sql)
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
+# — schedule maker —
+@app.route('/schedule')
+def schedule_maker():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
+
+    # 1) Read your 8 stored‐proc filters, using '' or -1 as defaults
+    filters = {
+      "p_department":           request.args.get("p_department",""),
+      "p_courseID":             request.args.get("p_courseID",""),
+      "p_course_name":          request.args.get("p_course_name",""),
+      "p_description_includes": request.args.get("p_description_includes",""),
+      "p_professor":            request.args.get("p_professor",""),
+      "p_min_credits":          request.args.get("p_min_credits",-1, type=int),
+      "p_max_credits":          request.args.get("p_max_credits",-1, type=int),
+      "p_campus_available":     request.args.get("p_campus_available",""),
+    }
+
+    conn = get_db_conn()
+    cur  = conn.cursor(dictionary=True)
+
+    # 2) Call your find_section proc
+    cur.execute(
+      "CALL find_section(%(p_department)s, %(p_courseID)s, "
+      "%(p_course_name)s, %(p_description_includes)s, "
+      "%(p_professor)s, %(p_min_credits)s, %(p_max_credits)s, "
+      "%(p_campus_available)s)",
+      filters
+    )
+    sections = cur.fetchall()
+
+    # 3) Campus dropdown
+    cur.execute("SELECT DISTINCT campus_name FROM campus")
+    campuses = [r["campus_name"] for r in cur.fetchall()]
+
+    # 4) Load the user’s current schedule
+    cur.execute("""
+      SELECT e.sectionID,
+             s.courseID, c.course_name,
+             ct.time_start, ct.time_end,
+             pr.prof_name,
+             ca.campus_name
+      FROM enrollment e
+      JOIN section       s  ON e.sectionID = s.sectionID
+      JOIN courses       c  ON s.courseID  = c.courseID
+      JOIN class_time    ct ON s.timeID     = ct.timeID
+      JOIN professor     pr ON s.professorID= pr.professorID
+      JOIN course_campus cc ON c.courseID   = cc.courseID
+      JOIN campus        ca ON cc.campusID  = ca.campusID
+      WHERE e.user_id = %s
+      ORDER BY ct.time_start
+    """, (user_id,))
+    schedule = cur.fetchall()
+
+    cur.close()
+    close_db_conn(conn)
+
+    return render_template(
+      'schedule.html',
+      sections=sections,
+      campuses=campuses,
+      schedule=schedule,
+      filters=request.args
+    )
+
+# — enroll using your trigger for conflict checking —
+@app.route('/enroll', methods=['POST'])
+def enroll():
+    user_id    = session.get('user_id')
+    section_id = request.json.get('sectionID')
+
+    conn = get_db_conn()
+    cur  = conn.cursor()
+    try:
+        cur.execute(
+          "INSERT INTO enrollment (user_id, sectionID) VALUES (%s, %s)",
+          (user_id, section_id)
+        )
+        conn.commit()
+        return jsonify(success=True), 200
+
+    except mysql.connector.Error as e:
+        # Your trigger SIGNALs SQLSTATE '45000' on conflict
+        if e.sqlstate == '45000':
+            return jsonify(success=False, error=e.msg), 409
+        return jsonify(success=False, error="DB error"), 500
+
+    finally:
+        cur.close()
+        close_db_conn(conn)
+
+# — drop a section from schedule —
+@app.route('/drop', methods=['POST'])
+def drop():
+    user_id    = session.get('user_id')
+    section_id = request.json.get('sectionID')
+    conn = get_db_conn()
+    cur  = conn.cursor()
+    cur.execute(
+      "DELETE FROM enrollment WHERE user_id=%s AND sectionID=%s",
+      (user_id, section_id)
+    )
+    conn.commit()
+    cur.close()
+    close_db_conn(conn)
+    return jsonify(success=True)
 
 
 if __name__ == "__main__":

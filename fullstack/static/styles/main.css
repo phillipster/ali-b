@@ -19,6 +19,10 @@ code {
 
 }
 
+h1 {
+  margin: 1em;
+}
+
 /* Style the links inside the navigation bar */
 .topnav a {
   float: left;
@@ -37,6 +41,41 @@ code {
 
 /* Add a color to the active/current link */
 .topnav a.active {
-  background-color: #04AA6D;
+  background-color: #a640f8;
   color: white;
+}
+
+.campus-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  border: 1em solid transparent;
+
+}
+
+.campus-item {
+  text-align: center; /* Center content within each grid item */
+  color: #000;
+  text-decoration: none;
+  border: 5px solid rgba(0,0,0,0.1);
+  padding: 1vw;
+  transition: background-color 0.25s;
+  border-radius: 3px;
+}
+
+.campus-item img {
+  width: 100%;
+  height: auto;
+  max-width: 220px;
+  max-height:220px;
+}
+
+.campus-item a {
+  color: #a640f8;
+  font-size: 20px;
+}
+
+label[for="schoolFilter"] {
+  margin: 1em;
+  border: 1em solid transparent;
 }
