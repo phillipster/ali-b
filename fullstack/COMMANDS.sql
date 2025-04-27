@@ -1,4 +1,4 @@
-ALTER TABLE user
+ALTER TABLE albert.user
 ADD COLUMN password VARCHAR(20);
 
 UPDATE albert.user
@@ -23,15 +23,16 @@ GRANT SELECT ON albert.professor TO faculty;
 GRANT SELECT ON albert.campus TO faculty;
 GRANT SELECT ON albert.department TO faculty;
 
-GRANT INSERT, UPDATE, DELETE ON albert.courses TO faculty;
-GRANT INSERT, UPDATE, DELETE ON albert.section TO faculty;
-GRANT INSERT, UPDATE, DELETE ON albert.professor TO faculty;
+GRANT INSERT, UPDATE, DELETE,SELECT ON albert.courses TO faculty;
+GRANT INSERT, UPDATE, DELETE,SELECT ON albert.section TO faculty;
+GRANT INSERT, UPDATE, DELETE,SELECT ON albert.professor TO faculty;
 
 CREATE USER 'test'@'localhost' IDENTIFIED BY 'password';
 GRANT faculty TO 'test'@'localhost';
 GRANT student TO 'test'@'localhost';
 REVOKE faculty FROM 'test'@'localhost';
 SHOW GRANTS FOR 'test'@'localhost';
+
 --
 -- Database: `albert`
 --
