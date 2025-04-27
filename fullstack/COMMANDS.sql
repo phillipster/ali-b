@@ -1,6 +1,6 @@
 ALTER TABLE albert.user
 ADD COLUMN password VARCHAR(20);
-
+--
 UPDATE albert.user
 SET password = 'chicken';
 SELECT * FROM albert.user;
