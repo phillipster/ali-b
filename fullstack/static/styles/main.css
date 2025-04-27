@@ -47,8 +47,10 @@ h1 {
 
 .campus-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Creates 4 columns */
-  gap: 20px; /* Adjust as needed for spacing between grid items */
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  border: 1em;
+
 }
 
 .campus-item {
@@ -62,14 +64,13 @@ h1 {
 }
 
 .campus-item img {
-  width: 100%; /* Make images responsive within their grid item */
+  width: 100%;
   height: auto;
-  max-width: 220px; /* Adjust as needed */
+  max-width: 220px;
   max-height:220px;
 }
 
 .campus-item a {
-  text-decoration: none; /* Remove underline from links */
-  color: black; /* Adjust link color */
+  color: #a640f8;
   font-size: 20px;
 }

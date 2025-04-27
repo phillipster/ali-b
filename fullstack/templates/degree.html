@@ -1,4 +1,3 @@
-<!-- backend/templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,26 +25,44 @@
   {%- raw %}
   <script type="text/babel">
     function App() {
-      const [campuses, setCampuses] = React.useState([]);
+      const [degrees, setdegrees] = React.useState([]);
+      const [selectedSchool, setSelectedSchool] = React.useState('');
 
       React.useEffect(() => {
-        fetch("/api/campus")            // hits your Flask endpoint
+        const url = selectedSchool ? `/api/degrees?schoolID=${selectedSchool}` : '/api/degrees';
+        fetch(url)
           .then(r => r.json())
-          .then(setCampuses)
+          .then(setdegrees)
           .catch(console.error);
-      }, []);https://jinja.palletsprojects.com/en/stable/templates/
+      }, [selectedSchool]);
+
+      const handleSchoolChange = (event) => {
+        setSelectedSchool(event.target.value);
+      };
 
       return (
-              <div>
-                <h1>Campuses</h1>
-                <ul>
-                  {campuses.map(c => (
-                          <div key={c.campusID /* or c.id */}>
-                            {c.campus_name}
-                          </div>
-                  ))}
-                </ul>
+        <div>
+          <h1>Degrees</h1>
+          <label htmlFor="schoolFilter">Filter by School:</label>
+          <select id="schoolFilter" onChange={handleSchoolChange} value={selectedSchool}>
+            <option value="">All Schools</option>
+            {/* You'll need to fetch the schools and map them here */}
+            {/* Example: */}
+            {/* {schools.map(school => (
+              <option key={school.schoolID} value={school.schoolID}>{school.school_name}</option>
+            ))} */}
+          </select>
+          <div className="campus-grid">
+            {degrees.map(degree => (
+              <div key={degree.degreeID} className="campus-item">
+                <a href={degree.url} target="_blank">
+                  {degree.degree_name}
+                </a>
+                <div>{degree.description}</div>
               </div>
+            ))}
+          </div>
+        </div>
       );
     }
 

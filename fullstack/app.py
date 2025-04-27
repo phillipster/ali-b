@@ -205,5 +205,33 @@ def api_items():
     return jsonify(items)
 
 
+@app.route("/api/schools")
+def school_items():
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM school")
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
+@app.route("/api/degrees")
+def degree_items():
+    school_id = request.args.get('schoolID')
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    sql = "SELECT * FROM degree"
+    if school_id:
+        sql += " WHERE schoolID = %s"
+        cursor.execute(sql, (school_id,))
+    else:
+        cursor.execute(sql)
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
 if __name__ == "__main__":
     app.run(debug=False)
