@@ -102,6 +102,10 @@ def login():
             error = 'Invalid username, password, or selected role'
     return render_template('login.html', error=error)
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/dashboard')
 def dashboard():
@@ -191,6 +195,10 @@ def course_search():
 
 @app.route("/page/<page>")
 def load_page(page):
+    if page == "schedule":
+        return schedule_maker()
+
+    # otherwise render the plain template
     return render_template(f"{page}.html")
 
 
@@ -231,6 +239,115 @@ def degree_items():
     cursor.close();
     conn.close()
     return jsonify(items)
+
+
+# — schedule maker —
+@app.route('/schedule')
+def schedule_maker():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
+
+    # 1) Read your 8 stored‐proc filters, using '' or -1 as defaults
+    filters = {
+      "p_department":           request.args.get("p_department",""),
+      "p_courseID":             request.args.get("p_courseID",""),
+      "p_course_name":          request.args.get("p_course_name",""),
+      "p_description_includes": request.args.get("p_description_includes",""),
+      "p_professor":            request.args.get("p_professor",""),
+      "p_min_credits":          request.args.get("p_min_credits",-1, type=int),
+      "p_max_credits":          request.args.get("p_max_credits",-1, type=int),
+      "p_campus_available":     request.args.get("p_campus_available",""),
+    }
+
+    conn = get_db_conn()
+    cur  = conn.cursor(dictionary=True)
+
+    # 2) Call your find_section proc
+    cur.execute(
+      "CALL find_section(%(p_department)s, %(p_courseID)s, "
+      "%(p_course_name)s, %(p_description_includes)s, "
+      "%(p_professor)s, %(p_min_credits)s, %(p_max_credits)s, "
+      "%(p_campus_available)s)",
+      filters
+    )
+    sections = cur.fetchall()
+
+    # 3) Campus dropdown
+    cur.execute("SELECT DISTINCT campus_name FROM campus")
+    campuses = [r["campus_name"] for r in cur.fetchall()]
+
+    # 4) Load the user’s current schedule
+    cur.execute("""
+      SELECT e.sectionID,
+             s.courseID, c.course_name,
+             ct.time_start, ct.time_end,
+             pr.prof_name,
+             ca.campus_name
+      FROM enrollment e
+      JOIN section       s  ON e.sectionID = s.sectionID
+      JOIN courses       c  ON s.courseID  = c.courseID
+      JOIN class_time    ct ON s.timeID     = ct.timeID
+      JOIN professor     pr ON s.professorID= pr.professorID
+      JOIN course_campus cc ON c.courseID   = cc.courseID
+      JOIN campus        ca ON cc.campusID  = ca.campusID
+      WHERE e.user_id = %s
+      ORDER BY ct.time_start
+    """, (user_id,))
+    schedule = cur.fetchall()
+
+    cur.close()
+    close_db_conn(conn)
+
+    return render_template(
+      'schedule.html',
+      sections=sections,
+      campuses=campuses,
+      schedule=schedule,
+      filters=request.args
+    )
+
+# — enroll using your trigger for conflict checking —
+@app.route('/enroll', methods=['POST'])
+def enroll():
+    user_id    = session.get('user_id')
+    section_id = request.json.get('sectionID')
+
+    conn = get_db_conn()
+    cur  = conn.cursor()
+    try:
+        cur.execute(
+          "INSERT INTO enrollment (user_id, sectionID) VALUES (%s, %s)",
+          (user_id, section_id)
+        )
+        conn.commit()
+        return jsonify(success=True), 200
+
+    except mysql.connector.Error as e:
+        # Your trigger SIGNALs SQLSTATE '45000' on conflict
+        if e.sqlstate == '45000':
+            return jsonify(success=False, error=e.msg), 409
+        return jsonify(success=False, error="DB error"), 500
+
+    finally:
+        cur.close()
+        close_db_conn(conn)
+
+# — drop a section from schedule —
+@app.route('/drop', methods=['POST'])
+def drop():
+    user_id    = session.get('user_id')
+    section_id = request.json.get('sectionID')
+    conn = get_db_conn()
+    cur  = conn.cursor()
+    cur.execute(
+      "DELETE FROM enrollment WHERE user_id=%s AND sectionID=%s",
+      (user_id, section_id)
+    )
+    conn.commit()
+    cur.close()
+    close_db_conn(conn)
+    return jsonify(success=True)
 
 
 if __name__ == "__main__":
