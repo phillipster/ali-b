@@ -6,6 +6,7 @@ SET password = 'chicken';
 SELECT * FROM albert.user;
 
 CREATE USER 'ali-b-admin'@'localhost' IDENTIFIED BY 'FeldmanShahHsu';
+GRANT albert.* TO 'ali-b-admin';
 SELECT * FROM mysql.user;
 
 CREATE ROLE student;

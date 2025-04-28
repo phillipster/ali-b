@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Create User</title>
     <style>
         body {
             font-family: sans-serif;
@@ -14,7 +14,7 @@
             min-height: 100vh;
             margin: 0;
         }
-        .login-container {
+        .create-user-container {
             background-color: #fff;
             padding: 20px;
             border-radius: 8px;
@@ -50,7 +50,7 @@
             margin-bottom: 15px;
         }
         button[type="submit"] {
-            background-color: #007bff;
+            background-color: #28a745;
             color: white;
             padding: 10px 15px;
             border: none;
@@ -59,22 +59,30 @@
             width: 100%;
         }
         button[type="submit"]:hover {
-            background-color: #0056b3;
+            background-color: #1e7e34;
         }
         .error {
             color: red;
             margin-top: 10px;
             text-align: center;
         }
+        .success {
+            color: green;
+            margin-top: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h2>Login</h2>
+    <div class="create-user-container">
+        <h2>Create New User</h2>
         {% if error %}
         <p class="error">{{ error }}</p>
         {% endif %}
-        <form method="POST" action="/login">
+        {% if success_message %}
+        <p class="success">{{ success_message }}</p>
+        {% endif %}
+        <form method="POST" action="/create_user">
             <div class="form-group">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
@@ -91,9 +99,9 @@
                     <option value="faculty">Instructor</option>
                 </select>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit">Create User</button>
+            <p><a href="{{ url_for('login') }}">Back to Login</a></p>
         </form>
-        <p>Don't have an account? <a href="{{ url_for('create_user_route') }}">Create User</a></p>
     </div>
 </body>
 </html>

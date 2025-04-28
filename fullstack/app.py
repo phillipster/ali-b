@@ -1,10 +1,9 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory, \
     session, redirect, url_for
 import mysql.connector
-from werkzeug.security import check_password_hash
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = 'your_secret_key'
+app.secret_key = 'your_secret_key'  # VERY IMPORTANT: Set a secret key!
 
 DB_CONFIG = {
     'host': 'localhost',
@@ -33,10 +32,11 @@ def get_user_by_username(username):
     cursor = conn.cursor(dictionary=True)
     user = None
     try:
-        # Assuming you have a 'role' column in your mysql.user table
         query = "SELECT User, Password FROM mysql.user WHERE User = %s"
+        print(f"Executing query: {query}, with username: {username}")
         cursor.execute(query, (username,))
         user = cursor.fetchone()
+        print(f"User found: {user}")
     except mysql.connector.Error as err:
         print(f"Error: {err}")
     finally:
@@ -50,39 +50,123 @@ def get_user_roles(username):
     cursor = conn.cursor()
     roles = []
     try:
-        # Query to get the active roles for the current user
-        cursor.execute("SELECT CURRENT_ROLE()")
-        current_role = cursor.fetchone()[0]
-        if current_role:
-            # If a specific role is active, return it
-            roles.append(current_role)
-        else:
-            # If no specific role is active, get all granted roles
-            cursor.execute(
-                "SELECT ROLE_NAME FROM INFORMATION_SCHEMA.APPLICABLE_ROLES WHERE GRANTEE = %s",
-                (f"'username'@'localhost'",))  # Adjust username format if needed
-            for row in cursor:
-                roles.append(row[0])
+        query = f"SHOW GRANTS FOR '{username}'@'localhost'"
+        print(f"Executing role query (SHOW GRANTS): {query}")
+        cursor.execute(query)
+        results = cursor.fetchall()
+        print(f"Grants found: {results}")
+
+        for row in results:
+            grant_statement = row[0]  # Each row is a grant statement
+            if grant_statement.startswith("GRANT `"):
+                # Extract the role name
+                parts = grant_statement.split(" TO ")
+                if len(parts) > 0:
+                    role_part = parts[0]
+                    role_name = role_part.split("`")[1]  # Get the role name within backticks
+                    roles.append(role_name)
+        print(f"Roles found (SHOW GRANTS): {roles}")
+        return roles
+
     except mysql.connector.Error as err:
         print(f"Error getting user roles: {err}")
+        return []
     finally:
         cursor.close()
         close_db_conn(conn)
-    return roles
+
 
 
 def authenticate_user(username, password, selected_role):
-    user = get_user_by_username(username)
-    if user and user['Password']:
-        if check_password_hash(user['Password'], password):
+    """
+    Authenticates a user against MySQL's built-in password hashing.
+    """
+    print(f"Authenticating user: {username}, with password: {password}, and role: {selected_role}")
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Use MySQL's PASSWORD() function in the query.
+        query = "SELECT User FROM mysql.user WHERE User = %s AND Password = PASSWORD(%s)"
+        cursor.execute(query, (username, password))  # Pass plain-text password
+        user = cursor.fetchone()
+
+        if user:
+            print("Password check passed (using MySQL PASSWORD() function)")
             user_roles = get_user_roles(username)
+            print(f"User roles: {user_roles}")
             if selected_role in user_roles:
-                return True, user['user_id'], selected_role
+                print("Authentication successful")
+                return True, user['User'], selected_role
             else:
+                print("Role not found for user")
                 return False, None, None
         else:
+            print("Password check failed (using MySQL PASSWORD() function)")
             return False, None, None
-    return False, None, None
+    except mysql.connector.Error as err:
+        print(f"Error during authentication: {err}")
+        return False, None, None
+    finally:
+        cursor.close()
+        close_db_conn(conn)
+
+
+
+def create_new_user(username, password, role):
+    """
+    Creates a new user in the database.
+    """
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        create_user_sql = f"CREATE USER %s@'localhost' IDENTIFIED BY %s"
+        cursor.execute(create_user_sql, (username, password))
+        print('executed user creation')
+        grant_role_sql = f"GRANT {role} TO %s@'localhost'"
+        cursor.execute(grant_role_sql, (username,))
+        print('role granted')
+        conn.commit()
+        return True, "User created successfully."
+
+    except mysql.connector.Error as err:
+        conn.rollback()
+        error_message = f"Error creating user: {err}"
+        print(error_message)
+        return False, error_message
+    finally:
+        cursor.close()
+        close_db_conn(conn)
+
+
+
+@app.route('/create_user', methods=['GET', 'POST'])
+def create_user_route():
+    error = None
+    success_message = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        role = request.form['role']
+
+        if not username:
+            error = "Username is required."
+        elif not password:
+            error = "Password is required."
+        elif role not in ['student', 'faculty']:
+            error = "Invalid role.  Must be 'student' or 'faculty'."
+        elif get_user_by_username(username):
+            error = "Username already exists."
+
+        if not error:
+            success, message = create_new_user(username, password, role)
+            if success:
+                success_message = message
+                return redirect(url_for('login'))
+            else:
+                error = message
+
+    return render_template('create_user.html', error=error,
+                           success_message=success_message)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -97,34 +181,39 @@ def login():
         if success:
             session['user_id'] = user_id
             session['role'] = user_role
+            session['username'] = username # Store the username
             return redirect(url_for('dashboard'))
         else:
             error = 'Invalid username, password, or selected role'
     return render_template('login.html', error=error)
 
+
 @app.route('/logout')
 def logout():
+    # Clear the session when the user logs out.
     session.clear()
     return redirect(url_for('login'))
 
+
 @app.route('/dashboard')
 def dashboard():
+    # Check if the user is logged in by checking for user_id in the session.
     if 'user_id' in session:
+        user_id = session['user_id']
         role = session.get('role', 'Guest')
-        return f"Welcome to the dashboard! Your user ID is {session['user_id']} and your role is: {role}"
+        username = session.get('username') # Get the username.
+        return render_template('dashboard.html', user_id=user_id, role=role, username=username)  # Pass to template
     else:
         return redirect(url_for('login'))
 
 
 @app.route("/")
 def index():
-    """Serve the static index.html file."""
     return send_from_directory('static', 'pages/index.html')
 
 
 @app.route("/course_search")
 def course_search():
-    # 1) Read filters
     prof_name = request.args.get("prof_name", "").strip() or None
     min_cred = request.args.get("min_credits", type=int)
     max_cred = request.args.get("max_credits", type=int)
@@ -133,24 +222,20 @@ def course_search():
     conn = get_db_conn()
     cur = conn.cursor(dictionary=True)
 
-    # 2) Always fetch the list of degrees for the dropdown
     cur.execute("SELECT degreeID, degree_name FROM degree")
     degrees = cur.fetchall()
 
-    # 3) Build & run the **courses** query (no section/professor join here)
     course_sql = """
       SELECT c.courseID, c.course_name, c.credits
       FROM courses c
     """
     course_args = []
 
-    # only join degree_requirements if degree_id filter set
     if degree_id:
         course_sql += " JOIN degree_requirements dr ON dr.courseID = c.courseID"
         course_sql += " WHERE dr.degreeID = %s"
         course_args.append(degree_id)
 
-    # other filters still apply to courses
     if min_cred is not None:
         course_sql += " WHERE c.credits >= %s";
         course_args.append(min_cred)
@@ -162,7 +247,6 @@ def course_search():
     cur.execute(course_sql, course_args)
     courses = cur.fetchall()
 
-    # 4) Conditionally fetch **sections** (+ professor) only if prof_name
     sections = []
     print(prof_name)
     if prof_name:
@@ -183,13 +267,12 @@ def course_search():
     conn.close()
     print("Sections: ", sections)
 
-    # 5) Render all three datasets (courses, degrees, maybe sections)
     return render_template(
-      "course_search.html",
-      degrees=degrees,
-      filters=request.args,
-      courses=courses,
-      sections=sections     # will be empty if prof_name not set
+        "course_search.html",
+        degrees=degrees,
+        filters=request.args,
+        courses=courses,
+        sections=sections
     )
 
 
@@ -278,43 +361,39 @@ def department_items():
     return jsonify(items)
 
 
-# — schedule maker —
 @app.route('/schedule')
 def schedule_maker():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user_id = session['user_id']
 
-    # 1) Read your 8 stored‐proc filters, using '' or -1 as defaults
     filters = {
-      "p_department":           request.args.get("p_department",""),
-      "p_courseID":             request.args.get("p_courseID",""),
-      "p_course_name":          request.args.get("p_course_name",""),
-      "p_description_includes": request.args.get("p_description_includes",""),
-      "p_professor":            request.args.get("p_professor",""),
-      "p_min_credits":          request.args.get("p_min_credits",-1, type=int),
-      "p_max_credits":          request.args.get("p_max_credits",-1, type=int),
-      "p_campus_available":     request.args.get("p_campus_available",""),
+        "p_department": request.args.get("p_department", ""),
+        "p_courseID": request.args.get("p_courseID", ""),
+        "p_course_name": request.args.get("p_course_name", ""),
+        "p_description_includes": request.args.get(
+            "p_description_includes", ""),
+        "p_professor": request.args.get("p_professor", ""),
+        "p_min_credits": request.args.get("p_min_credits", -1, type=int),
+        "p_max_credits": request.args.get("p_max_credits", -1, type=int),
+        "p_campus_available": request.args.get("p_campus_available", ""),
     }
 
     conn = get_db_conn()
-    cur  = conn.cursor(dictionary=True)
+    cur = conn.cursor(dictionary=True)
 
-    # 2) Call your find_section proc
     cur.execute(
-      "CALL find_section(%(p_department)s, %(p_courseID)s, "
-      "%(p_course_name)s, %(p_description_includes)s, "
-      "%(p_professor)s, %(p_min_credits)s, %(p_max_credits)s, "
-      "%(p_campus_available)s)",
-      filters
+        "CALL find_section(%(p_department)s, %(p_courseID)s, "
+        "%(p_course_name)s, %(p_description_includes)s, "
+        "%(p_professor)s, %(p_min_credits)s, %(p_max_credits)s, "
+        "%(p_campus_available)s)",
+        filters
     )
     sections = cur.fetchall()
 
-    # 3) Campus dropdown
     cur.execute("SELECT DISTINCT campus_name FROM campus")
     campuses = [r["campus_name"] for r in cur.fetchall()]
 
-    # 4) Load the user’s current schedule
     cur.execute("""
       SELECT e.sectionID,
              s.courseID, c.course_name,
@@ -337,31 +416,31 @@ def schedule_maker():
     close_db_conn(conn)
 
     return render_template(
-      'schedule.html',
-      sections=sections,
-      campuses=campuses,
-      schedule=schedule,
-      filters=request.args
+        'schedule.html',
+        sections=sections,
+        campuses=campuses,
+        schedule=schedule,
+        filters=request.args
     )
 
-# — enroll using your trigger for conflict checking —
+
+
 @app.route('/enroll', methods=['POST'])
 def enroll():
-    user_id    = session.get('user_id')
+    user_id = session.get('user_id')
     section_id = request.json.get('sectionID')
 
     conn = get_db_conn()
-    cur  = conn.cursor()
+    cur = conn.cursor()
     try:
         cur.execute(
-          "INSERT INTO enrollment (user_id, sectionID) VALUES (%s, %s)",
-          (user_id, section_id)
+            "INSERT INTO enrollment (user_id, sectionID) VALUES (%s, %s)",
+            (user_id, section_id)
         )
         conn.commit()
         return jsonify(success=True), 200
 
     except mysql.connector.Error as e:
-        # Your trigger SIGNALs SQLSTATE '45000' on conflict
         if e.sqlstate == '45000':
             return jsonify(success=False, error=e.msg), 409
         return jsonify(success=False, error="DB error"), 500
@@ -370,16 +449,16 @@ def enroll():
         cur.close()
         close_db_conn(conn)
 
-# — drop a section from schedule —
+
 @app.route('/drop', methods=['POST'])
 def drop():
-    user_id    = session.get('user_id')
+    user_id = session.get('user_id')
     section_id = request.json.get('sectionID')
     conn = get_db_conn()
-    cur  = conn.cursor()
+    cur = conn.cursor()
     cur.execute(
-      "DELETE FROM enrollment WHERE user_id=%s AND sectionID=%s",
-      (user_id, section_id)
+        "DELETE FROM enrollment WHERE user_id=%s AND sectionID=%s",
+        (user_id, section_id)
     )
     conn.commit()
     cur.close()
