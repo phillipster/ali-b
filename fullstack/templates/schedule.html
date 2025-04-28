@@ -8,26 +8,21 @@
             font-family: Arial, sans-serif;
             background: #f5f7fa;
             margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
+            display: flex; /* Use flexbox for layout */
             min-height: 100vh;
         }
 
         aside {
-            width: 300px;
+            width: 300px; /* Fixed width for the sidebar */
             background: #fff;
             padding: 1rem;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            position: sticky;
-            top: 0;
-            height: 100vh;
             overflow-y: auto;
             box-sizing: border-box;
         }
 
         main {
-            flex: 1;
+            flex: 1; /* Take remaining space */
             padding: 1rem;
             display: flex;
             flex-direction: column;
@@ -56,12 +51,12 @@
 
         .calendar {
             display: grid;
-            grid-template-columns: 80px repeat(7, 1fr);
-            grid-template-rows: 40px repeat(15, 60px);
+            grid-template-columns: 60px repeat(7, 1fr); /* Reduced column width */
+            grid-template-rows: 30px repeat(15, 50px); /* Reduced row height */
             gap: 0;
             border: 1px solid #ccc;
             background: #fff;
-            max-width: 1000px;
+            max-width: 800px; /* Reduced max-width */
             margin: 1rem auto;
             width: 100%;
             box-sizing: border-box;
@@ -76,12 +71,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 0.8em; /* Adjusted font size */
         }
 
         .time-label {
             text-align: right;
             padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
+            font-size: 0.6em; /* Adjusted font size */
             color: #666;
             border-top: 1px solid #eee;
             border-right: 1px solid #ccc;
@@ -100,10 +96,15 @@
             color: white;
             padding: 0.3rem;
             margin: 1px;
-            font-size: 0.8rem;
+            font-size: 0.7em; /* Adjusted font size */
             border-radius: 4px;
             position: relative;
             cursor: pointer;
+            opacity: 0.8;
+            z-index: 10;
+            display: block;
+            min-height: 50px !important; /* Adjusted min-height to match grid row */
+            overflow: visible !important;
         }
 
         .sections-list {
@@ -150,7 +151,7 @@
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s ease;
-            font-size: 0.9rem;
+            font-size: 0.8rem; /* Adjusted font size */
         }
 
         .sections-list .enroll-button {
@@ -199,21 +200,21 @@
 
         @media (max-width: 768px) {
             .calendar {
-                grid-template-columns: 60px repeat(7, 1fr);
-                grid-template-rows: 30px repeat(15, 50px);
+                grid-template-columns: 50px repeat(7, 1fr); /* Further reduced column width for smaller screens */
+                grid-template-rows: 25px repeat(15, 40px); /* Further reduced row height */
             }
 
             .day-header {
-                font-size: 0.8em;
+                font-size: 0.7em;
             }
 
             .time-label {
-                font-size: 0.6em;
+                font-size: 0.5em;
             }
 
             .event {
-                font-size: 0.7em;
-                padding: 0.2rem;
+                font-size: 0.6em;
+                padding: 0.1rem;
             }
 
             aside {
@@ -224,17 +225,17 @@
             }
 
             main {
-                padding: 1rem;
+                padding: 0.5rem; /* Reduced padding for smaller screens */
             }
 
             .filters {
-                margin-bottom: 1rem;
+                margin-bottom: 0.5rem; /* Reduced margin */
             }
 
             .sections-list .enroll-button,
             .sections-list .drop-button {
-                font-size: 0.8rem;
-                padding: 0.5rem;
+                font-size: 0.7rem;
+                padding: 0.4rem;
             }
         }
     </style>
@@ -249,7 +250,11 @@
     <a href="/page/professor">Staff Directory</a>
     <a class="active" href="/course_search">Course Search</a>
     <a href="/page/schedule">Schedule Builder</a>
-    <a href="/page/login">Login</a>
+    {% if session['user_id'] %}
+    <a href="/logout">Logout</a>
+    {% else %}
+    <a href="/login">Login</a>
+    {% endif %}
 </div>
 <div class="content">
     <aside>
@@ -287,7 +292,7 @@
             </select>
 
             <button type="submit">Search</button>
-            <button type="reset" onclick="location='?';">Clear</button>
+            <button type="button" onclick="location='?';">Clear</button>
         </form>
     </aside>
 
@@ -303,16 +308,31 @@
                         <li id="available-section-{{ section.sectionID }}">
                             <span>{{ section.courseID }} - {{ section.course_name }}</span>
                             <span>{{ section.prof_name }}</span>
-                            <span>{{ section.time_start }} - {{ section.time_end }}</span>
-                            <span>{{ section.dates }}</span>
-                            <button class="enroll-button" onclick="enrollInSection('{{ section.sectionID }}')">Enroll</button>
+                            <span>
+                                {% if section.class_times %}
+                                    {{ section.class_times.time_start }} - {{ section.class_times.time_end }} (
+                                    {% for day in section.class_times.days %}
+                                        {{ day[0] }}
+                                    {% endfor %}
+                                    )
+                                {% else %}
+                                    No class times available
+                                {% endif %}
+                            </span>
+                            {% if section.sectionID in enrolled_section_ids %}
+                                <button class="drop-button" onclick="dropSection('{{ section.sectionID }}')">Drop</button>
+                            {% else %}
+                                <button class="enroll-button" onclick="enrollInSection('{{ section.sectionID }}')">Enroll</button>
+                            {% endif %}
                         </li>
                     {% endfor %}
                 {% else %}
                     <li>No sections found matching your criteria.</li>
                 {% endif %}
             </ul>
+
         </div>
+
 
         <div class="enrolled-list">
             <h2>Enrolled Sections</h2>
@@ -322,8 +342,17 @@
                         <li class="enrolled-section" id="enrolled-section-{{ enrolled_section.sectionID }}">
                             <span>{{ enrolled_section.courseID }} - {{ enrolled_section.course_name }}</span>
                             <span>{{ enrolled_section.prof_name }}</span>
-                            <span>{{ enrolled_section.time_start }} - {{ enrolled_section.time_end }}</span>
-                             <span>{{ enrolled_section.dates }}</span>
+                            <span>
+                                {% if enrolled_section.class_times %}
+                                    {{ enrolled_section.class_times.time_start }} - {{ enrolled_section.class_times.time_end }} (
+                                    {% for day in enrolled_section.class_times.days %}
+                                        {{ day[0] }}
+                                    {% endfor %}
+                                    )
+                                {% else %}
+                                    No class times available
+                                {% endif %}
+                            </span>
                             <button class="drop-button" onclick="dropSection('{{ enrolled_section.sectionID }}')">Drop</button>
                         </li>
                     {% endfor %}
@@ -331,204 +360,215 @@
                     <li>No enrolled sections.</li>
                 {% endif %}
             </ul>
+
         </div>
     </main>
 
-    <script>
-        // days and hours grid
-        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-        const hours = Array.from({ length: 15 }, (_, i) => i + 7);
+<script>
+    const calendar = document.getElementById("calendar");
+    const enrolledSectionsList = document.getElementById("enrolled-sections-list");
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const hours = Array.from({ length: 15 }, (_, i) => i + 7);
 
-        const schedule = {{ schedule|tojson }};
+    let currentSchedule = {{ schedule|tojson }};
+    console.log("Initial currentSchedule:", currentSchedule);
 
-        function normalizeSchedule(scheduleData) {
-            return scheduleData.map(e => {
-                const startHour = parseInt(e.time_start.split(":")[0]);
-                const endHour = parseInt(e.time_end.split(":")[0]);
-                let dayIndex;
-                try {
-                    dayIndex = days.indexOf(days[new Date(e.dates).getDay() - 1]);
-                } catch (error) {
-                    dayIndex = -1;
-                }
-                return {
-                    day: days[new Date(e.dates).getDay() - 1],
-                    time: startHour,
-                    duration: endHour - startHour,
-                    title: `${e.courseID}: ${e.course_name}`,
-                    sectionId: e.sectionID  // Include sectionId for drop
-                };
-            });
+    renderCalendar(currentSchedule);
+    updateEnrolledList(currentSchedule);
+
+    function normalizeSchedule(scheduleData) {
+        if (!scheduleData || !Array.isArray(scheduleData)) {
+            console.error("normalizeSchedule: Invalid scheduleData. Expected array.");
+            return [];
         }
-        const events = normalizeSchedule(schedule);
-
-
-        const calendar = document.getElementById("calendar");
-        const enrolledSectionsList = document.getElementById("enrolled-sections-list");
-
-
-        function renderCalendar() {
-            calendar.innerHTML = "";
-            calendar.appendChild(document.createElement("div"));
-
-            days.forEach(d => {
-                const div = document.createElement("div");
-                div.className = "day-header";
-                div.textContent = d;
-                calendar.appendChild(div);
-            });
-
-            hours.forEach((h, i) => {
-                const label = document.createElement("div");
-                label.className = "time-label";
-                label.textContent = `${h % 12 || 12}${h < 12 ? "AM" : "PM"}`;
-                label.style.gridRow = i + 2;
-                label.style.gridColumn = 1;
-                calendar.appendChild(label);
-
-                for (let j = 0; j < 7; j++) {
-                    const cell = document.createElement("div");
-                    cell.className = "cell";
-                    cell.style.gridRow = i + 2;
-                    cell.style.gridColumn = j + 2;
-                    calendar.appendChild(cell);
-                }
-            });
-
-            events.forEach(ev => {
-                const dayIndex = days.indexOf(ev.day);
-                if (dayIndex < 0) return;
-                const startRow = ev.time - 5;
-                const endRow = startRow + ev.duration;
-
-                const div = document.createElement("div");
-                div.className = "event";
-                div.textContent = ev.title;
-                div.style.gridColumn = dayIndex + 2;
-                div.style.gridRow = `${startRow} / ${endRow}`;
-                calendar.appendChild(div);
-            });
-        }
-
-
-        function updateEnrolledList(enrolled) {
-            enrolledSectionsList.innerHTML = ''; // Clear the list
-            if (enrolled.length === 0) {
-                enrolledSectionsList.innerHTML = '<li>No enrolled sections.</li>';
-                return;
+        const events = scheduleData.flatMap(section => {
+            if (!section.class_times || !Array.isArray(section.class_times)) {
+                console.log(`Section ${section.sectionID}: No valid class_times`);
+                return [];
             }
-            enrolled.forEach(section => {
-                const li = document.createElement("li");
-                li.className = "enrolled-section";
-                li.id = `enrolled-section-${section.sectionID}`;
-                li.innerHTML = `
-                    <span>${section.courseID} - ${section.course_name}</span>
-                    <span>${section.prof_name}</span>
-                    <span>${section.time_start} - ${section.time_end}</span>
-                    <span>${section.dates}</span>
-                    <button class="drop-button" onclick="dropSection('${section.sectionID}')">Drop</button>
-                `;
-                enrolledSectionsList.appendChild(li);
+
+            return section.class_times.flatMap(classTime => {
+                console.log(`Section ${section.sectionID}, classTime:`, classTime);
+                const startTimeParts = (classTime && classTime.time_start || "00:00").split(":");
+                const endTimeParts = (classTime && classTime.time_end || "00:00").split(":");
+                const startHour = parseInt(startTimeParts[0]);
+                const startMinute = parseInt(startTimeParts[1] || 0);
+                const endHour = parseInt(endTimeParts[0]);
+                const endMinute = parseInt(endTimeParts[1] || 0);
+
+                const startTime = startHour + startMinute / 60;
+                const endTime = endHour + endMinute / 60;
+                const duration = endTime - startTime;
+
+                const classDays = (classTime && Array.isArray(classTime.days)) ? classTime.days : [];
+                console.log(`Section ${section.sectionID}, classDays:`, classDays);
+
+                return classDays.map(day => ({
+                    day: day,
+                    startTime: startTime,
+                    duration: duration,
+                    title: `${section.courseID}: ${section.course_name}`,
+                    sectionId: section.sectionID
+                }));
             });
-            renderCalendar();
-        }
+        });
+        return events;
+    }
 
-        renderCalendar();
-        updateEnrolledList(normalizeSchedule(schedule));
+    function renderCalendar(events) { // Expect 'events' directly
+        console.log("renderCalendar() called");
+        if (!calendar) return;
+        calendar.innerHTML = "";
+        calendar.appendChild(document.createElement("div")); // Top left empty cell
 
+        days.forEach(d => {
+            const div = document.createElement("div");
+            div.className = "day-header";
+            div.textContent = d;
+            calendar.appendChild(div);
+        });
 
-        function enrollInSection(sectionId) {
-            console.log(`Enrolling in section: ${sectionId}`);
+        hours.forEach((h, i) => {
+            const label = document.createElement("div");
+            label.className = "time-label";
+            label.textContent = `${h % 12 || 12}${h < 12 ? "AM" : "PM"}`;
+            label.style.gridRow = i + 2;
+            label.style.gridColumn = 1;
+            calendar.appendChild(label);
 
-            fetch('/enroll', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ sectionID: sectionId }), // Corrected key name to sectionID
-            })
-            .then(response => {
-                if (response.ok) {
-                    console.log('Successfully enrolled');
-                    return response.json(); // Parse JSON to get the updated schedule
-                } else if (response.status === 409) {
-                    return response.json().then(errorData => {
-                        throw new Error(errorData.error || 'Enrollment failed due to conflict.');
-                    });
-                }
-                 else {
-                    throw new Error('Failed to enroll in section.');
-                }
-            })
-            .then(data => {
-                // Update the enrolled sections list and calendar
-                fetch('/schedule')
-                    .then(response => response.json())
-                    .then(scheduleData => {
-                        const normalizedSchedule = normalizeSchedule(scheduleData.schedule);
-                        updateEnrolledList(normalizedSchedule);
-                        renderCalendar();
-                        // Remove the section from the available sections list
-                        const enrolledSectionElement = document.getElementById(`available-section-${sectionId}`);
-                        if (enrolledSectionElement) {
-                            enrolledSectionElement.remove();
-                        }
-                    })
-                    .catch(err => {
-                         console.error("Error fetching updated schedule", err);
-                         alert("Error updating schedule. Please refresh the page.");
-                    })
+            for (let j = 0; j < 7; j++) {
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                cell.style.gridRow = i + 2;
+                cell.style.gridColumn = j + 2;
+                calendar.appendChild(cell);
+            }
+        });
 
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert(error.message);
-            });
-        }
+        events.forEach(ev => { // Iterate through the 'events' argument
+            console.log("Processing event:", ev);
+            if (ev && ev.day) {
+                const dayIndex = days.indexOf(ev.day);
+                console.log("dayIndex:", dayIndex);
+                if (dayIndex >= 0) {
+                    const startHour = Math.floor(ev.startTime);
+                    const startMinuteRatio = (ev.startTime - startHour);
+                    const startRow = (startHour - 7) + 2 + (startMinuteRatio * (60 / 60));
+                    console.log("startRow:", startRow);
 
-        function dropSection(sectionId) {
-            console.log(`Dropping section: ${sectionId}`);
-            fetch('/drop', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ sectionID: sectionId }), // Corrected key name to sectionID
-            })
-            .then(response => {
-                if (response.ok) {
-                    console.log('Successfully dropped');
-                    return response.json();
+                    const durationRatio = ev.duration;
+                    const rowSpan = durationRatio * (60 / 60);
+                    console.log("rowSpan:", rowSpan);
+
+                    const div = document.createElement("div");
+                    div.className = "event";
+                    div.textContent = ev.title;
+                    div.style.gridColumn = dayIndex + 2;
+                    div.style.gridRowStart = Math.max(2, startRow);
+                    div.style.gridRowEnd = `span ${rowSpan}`;
+                    console.log("Appending event div:", div, "to calendar:", calendar);
+                    calendar.appendChild(div);
                 } else {
-                    throw new Error('Failed to drop section.');
+                    console.warn("Invalid day:", ev.day, "for event:", ev);
                 }
-            })
-             .then(data => {
-                // Refresh the schedule after dropping
-                fetch('/schedule')
-                    .then(response => response.json())
-                    .then(scheduleData => {
-                        const normalizedSchedule = normalizeSchedule(scheduleData.schedule);
-                        updateEnrolledList(normalizedSchedule);
-                        renderCalendar();
-                         // Add the section back to the available sections list (basic approach)
-                        //  A more robust approach would involve re-fetching the available sections
-                        //  from the server, potentially with updated filters.
-                        window.location.reload();
+            } else {
+                console.warn("Event missing 'day' property:", ev);
+            }
+        });
+    }
 
-                    })
-                    .catch(err => {
-                         console.error("Error fetching updated schedule", err);
-                         alert("Error updating schedule. Please refresh the page.");
-                    })
+    document.addEventListener('DOMContentLoaded', () => {
+        renderCalendar(normalizeSchedule(currentSchedule)); // Normalize on initial load
+        loadAvailableSections();
+    });
 
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert(error.message);
-            });
+    function updateEnrolledList(scheduleData) {
+        enrolledSectionsList.innerHTML = '';
+
+        if (!scheduleData.length) {
+            enrolledSectionsList.innerHTML = '<li>No enrolled sections.</li>';
+            renderCalendar([]);
+            return;
         }
-    </script>
+
+        scheduleData.forEach(section => {
+            const li = document.createElement("li");
+            li.className = "enrolled-section";
+            li.id = `enrolled-section-${section.sectionID}`;
+            li.innerHTML = `
+                <span>${section.courseID} - ${section.course_name}</span>
+                <span>${section.prof_name}</span>
+                <span>
+                    ${(section.class_times[0] ? [section.class_times[0]] : []).map(ct => `${ct.time_start} - ${ct.time_end} (${(ct.days || []).map(d => d[0]).join('')})`).join('<br>')}
+                </span>
+                <button class="drop-button" onclick="dropSection('${section.sectionID}')">Drop</button>
+            `;
+            enrolledSectionsList.appendChild(li);
+        });
+
+        const normalizedEvents = normalizeSchedule(scheduleData);
+        console.log("Normalized events in updateEnrolledList:", normalizedEvents);
+        renderCalendar(normalizedEvents);
+    }
+
+    function enrollInSection(sectionId) {
+        console.log("enrollInSection called with sectionId:", sectionId);
+        fetch('/enroll', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sectionID: sectionId }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("enrollInSection response:", data);
+            if (data.success) {
+                currentSchedule = data.schedule;
+                console.log("Calling updateEnrolledList with:", currentSchedule);
+                updateEnrolledList(currentSchedule);
+
+                const enrolledSectionElement = document.getElementById(`available-section-${sectionId}`);
+                if (enrolledSectionElement) {
+                    enrolledSectionElement.remove();
+                }
+            } else {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error during enroll:', error);
+            alert(error.message);
+        });
+    }
+
+    function dropSection(sectionId) {
+        console.log("dropSection called with sectionId:", sectionId);
+        fetch('/drop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sectionID: sectionId }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("dropSection response:", data);
+            if (data.success) {
+                currentSchedule = data.schedule; // Update with the fresh data from the backend
+                console.log("Calling updateEnrolledList with:", currentSchedule);
+                updateEnrolledList(currentSchedule);
+            } else {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error during drop:', error);
+            alert(error.message);
+        });
+    }
+</script>
+
 </div>
 </body>
 </html>

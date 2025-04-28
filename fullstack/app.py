@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory, \
     session, redirect, url_for
 import mysql.connector
+import datetime
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = 'your_secret_key'  # VERY IMPORTANT: Set a secret key!
@@ -16,6 +17,7 @@ DB_CONFIG = {
 def get_db_conn():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
+        print("Database connection established")  # Debug
         return conn
     except mysql.connector.Error as err:
         print(f"Error: {err}")
@@ -25,6 +27,7 @@ def get_db_conn():
 def close_db_conn(conn):
     if conn and conn.is_connected():
         conn.close()
+        print("Database connection closed") # Debug
 
 
 def get_user_by_username(username):
@@ -85,12 +88,7 @@ def get_user_roles(username):
 
 
 def authenticate_user(username, password, selected_role):
-    """
-    Authenticates a user against MySQL's built-in password hashing.
-    """
-    print(f"Authenticating user: {username}, with password: {password}, and role: {selected_role}")
-    conn = None
-    cursor = None
+    # ... (rest of the function)
     try:
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
@@ -99,25 +97,23 @@ def authenticate_user(username, password, selected_role):
         user = cursor.fetchone()
 
         if user:
-            print("Password check passed (using MySQL PASSWORD() function)")
             user_roles = get_user_roles(username)
-            print(f"User roles: {user_roles}")
             if selected_role in user_roles:
+                # Fetch the user_id from the 'users' table
+                cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+                user_data = cursor.fetchone()
+                actual_user_id = user_data['user_id'] if user_data else None
+
                 if selected_role == 'faculty':
-                    if instructor_passcode == "I<3Arfaoui":  # Check the passcode
-                        print("Instructor passcode correct.")
-                        return True, user['User'], selected_role
+                    if instructor_passcode == "I<3Arfaoui":
+                        return True, actual_user_id, selected_role # Return the actual user_id
                     else:
-                        print("Instructor passcode incorrect.")
                         return False, None, None
-                else:  #  Student or other role
-                    print("Role is not instructor, or instructor passcode check passed")
-                    return True, user['User'], selected_role
+                else:
+                    return True, actual_user_id, selected_role # Return the actual user_id
             else:
-                print("Role not found for user")
                 return False, None, None
         else:
-            print("Password check failed (using MySQL PASSWORD() function)")
             return False, None, None
     except mysql.connector.Error as err:
         print(f"Error during authentication: {err}")
@@ -196,18 +192,16 @@ def login():
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']
-        instructor_passcode = request.form.get('instructor_passcode')  # Get passcode
-        success, user_id, user_role = authenticate_user(username, password, role, instructor_passcode) # Pass it
+        instructor_passcode = request.form.get('instructor_passcode')
+        success, actual_user_id, user_role = authenticate_user(username, password, role) # Receive actual_user_id
         if success:
-            session['user_id'] = user_id
+            session['user_id'] = actual_user_id # Store the actual user_id in the session
             session['role'] = user_role
             session['username'] = username
-            return redirect(url_for('schedule'))  # Redirect to schedule
+            return redirect(url_for('schedule'))
         else:
             error = 'Invalid username, password, or selected role'
     return render_template('login.html', error=error)
-
-
 @app.route('/logout')
 def logout():
     # Clear the session when the user logs out.
@@ -239,52 +233,61 @@ def course_search():
     max_cred = request.args.get("max_credits", type=int)
     degree_id = request.args.get("degree_id", type=int)
 
-    conn = None
-    cursor = None
-    try:
-        conn = get_db_conn()
-        cursor = conn.cursor(dictionary=True)
-        cur = cursor
-        cur.execute("SELECT degreeID, degree_name FROM degree")
-        degrees = cur.fetchall()
+    conn = get_db_conn()
+    cur = conn.cursor(dictionary=True)
 
-        course_sql = """
-          SELECT c.courseID, c.course_name, c.credits
-          FROM courses c
+    cur.execute("SELECT degreeID, degree_name FROM degree")
+    degrees = cur.fetchall()
+
+    course_sql = """
+      SELECT c.courseID, c.course_name, c.credits
+      FROM courses c
+    """
+    course_args = []
+
+    if degree_id:
+        course_sql += " JOIN degree_requirements dr ON dr.courseID = c.courseID"
+        course_sql += " WHERE dr.degreeID = %s"
+        course_args.append(degree_id)
+
+    if min_cred is not None:
+        course_sql += " WHERE c.credits >= %s";
+        course_args.append(min_cred)
+    if max_cred is not None:
+        course_sql += " WHERE c.credits <= %s";
+        course_args.append(max_cred)
+
+    course_sql += " ORDER BY c.course_name"
+    cur.execute(course_sql, course_args)
+    courses = cur.fetchall()
+
+    sections = []
+    print(prof_name)
+    if prof_name:
+        sec_sql = """
+          SELECT DISTINCT 
+            c.courseID, c.course_name, c.credits,
+            p.prof_name
+          FROM section s
+          JOIN courses    c ON s.courseID    = c.courseID
+          JOIN professor p ON s.professorID  = p.professorID
+          WHERE p.prof_name LIKE %s
         """
-        course_args = []
+        sec_args = [f"%{prof_name}%"]
+        cur.execute(sec_sql, sec_args)
+        sections = cur.fetchall()
 
-        if degree_id:
-            course_sql += " JOIN degree_requirements dr ON dr.courseID = c.courseID"
-            course_sql += " WHERE dr.degreeID = %s"
-            course_args.append(degree_id)
+    cur.close()
+    conn.close()
+    print("Sections: ", sections)
 
-        if min_cred is not None:
-            course_sql += " WHERE c.credits >= %s";
-            course_args.append(min_cred)
-        if max_cred is not None:
-            course_sql += " WHERE c.credits <= %s";
-            course_args.append(max_cred)
-
-        course_sql += " ORDER BY c.course_name"
-        cur.execute(course_sql, course_args)
-        courses = cur.fetchall()
-
-        return render_template(
-            "course_search.html",
-            degrees=degrees,
-            filters=request.args,
-            courses=courses,
-        )
-    except mysql.connector.Error as e:
-        print(f"Error in course_search: {e}")
-        return "An error occurred", 500  #  Return an error response
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
+    return render_template(
+        "course_search.html",
+        degrees=degrees,
+        filters=request.args,
+        courses=courses,
+        sections=sections
+    )
 
 @app.route("/page/<page>")
 def load_page(page):
@@ -378,11 +381,6 @@ def professor_items():
    """
         args.append(department_id)
 
-    cursor.execute(sql, args)
-    items = cursor.fetchall()
-    cursor.close();
-    conn.close()
-    return jsonify(items)
 
 @app.route('/schedule', methods=['GET', 'POST'])
 def schedule():
@@ -391,7 +389,11 @@ def schedule():
     user_id = session['user_id']
     username = session.get('username')
 
-    conn = get_db_conn()  # Use the database connection from the context
+    print(f"[DEBUG] User ID from session in /schedule: {user_id}")
+
+    conn = get_db_conn()
+    if conn is None:
+        return "Database connection error", 500
     cursor = conn.cursor(dictionary=True)
     try:
         # 1) Read filters (defaults: "" or -1)
@@ -408,7 +410,7 @@ def schedule():
         print("--- calling find_section with ---")
         print(dept, cid, cname, desc, prof, min_cr, max_cr, camp)
 
-        # 2) Call the SP with exactly 8 arguments
+        # 2) Call the SP to get available sections
         cursor.callproc(
             "find_section",
             (
@@ -423,38 +425,77 @@ def schedule():
             ),
         )
 
-        # 3) Retrieve the rows your SP returned
+        # 3) Retrieve available sections
         sections = []
         for result in cursor.stored_results():
-            sections.extend(result.fetchall())
-        print(f"sections → {len(sections)} rows")
-
+            sections_data = result.fetchall()
+            print(f"Sections data from stored procedure: {sections_data}")
+            for row in sections_data:
+                sections.append({
+                    'sectionID': row.get('sectionID'),
+                    'department_name': row.get('department_name'),
+                    'school_name': row.get('school_name'),
+                    'instructor_name': row.get('instructor_name'),
+                    'instructor_email': row.get('instructor_email'),
+                    'campus_name': row.get('campus_name'),
+                    'campus_address': row.get('campus_address'),
+                    'time_start': row.get('time_start'),
+                    'time_end': row.get('time_end'),
+                    'courseID': row.get('courseID'),
+                    'course_name': row.get('course_name'),
+                    'course_description': row.get('course_description'),
+                    'credits': row.get('credits'),
+                    'prerequisite': row.get('prerequisite'),
+                    'dates': row.get('dates'),
+                    'section_name': row.get('section_name'),
+                    'class_times': get_class_times_for_section(cursor, row.get('timeID'))  # Get class times
+                })
+        print(f"Sections data being passed to template: {sections}")
+        print(f"[DEBUG] section built: {sections}")  # <-- Add this line
         # 4) get campus list
         cursor.execute("SELECT DISTINCT campus_name FROM campus")
         campuses = [r["campus_name"] for r in cursor.fetchall()]
+        print(f"Campuses: {campuses}") #debug
 
-        # 5) one-param query for this user
+        # 5) Fetch enrolled sections
         sql = """
-              SELECT s.courseID,
+              SELECT s.sectionID, \
+                     s.timeID,
+                     c.courseID,
                      c.course_name,
-                     DATE_FORMAT(ct.time_start, '%%H:%%i:%%s') AS time_start,
-                     DATE_FORMAT(ct.time_end, '%%H:%%i:%%s')   AS time_end,
-                     pr.prof_name,
-                     s.dates,
-                     s.sectionID  /* Include sectionID in the query */
+                     pr.prof_name
               FROM enrollment e
-                       JOIN section s ON e.sectionID = s.sectionID
+                       JOIN section s ON e.section_id = s.sectionID
                        JOIN courses c ON s.courseID = c.courseID
-                       JOIN class_time ct ON s.timeID = ct.timeID
                        JOIN professor pr ON s.professorID = pr.professorID
-              WHERE e.username = %s
-              ORDER BY ct.time_start
+              WHERE e.user_id = %s
               """
-        params = (user_id,)
-        cursor.execute(sql, params)
-        schedule1 = cursor.fetchall()
+        cursor.execute(sql, (user_id,))
+        rows = cursor.fetchall()
+        print(f"[DEBUG] Raw enrolled rows: {rows}")  # Add this line
 
-        # 6) render
+        # 6) Massage enrolled sections into a list of dicts and extract IDs
+        schedule1 = []
+        enrolled_section_ids = []
+        for r in rows:
+            time_data = get_class_times_for_section(cursor, r.get('timeID'))
+            class_times = []
+            if time_data:
+                class_times.append(time_data)
+
+            schedule1_row = {
+                'sectionID': r['sectionID'],
+                'courseID': r['courseID'],
+                'course_name': r['course_name'],
+                'prof_name': r['prof_name'],
+                'class_times': class_times
+            }
+            schedule1.append(schedule1_row)
+            enrolled_section_ids.append(r['sectionID'])  # Add the sectionID to the list
+            print(f"[DEBUG] Enrolled section built: {schedule1_row}")  # Debug for each enrolled section
+        print(f"[DEBUG] Enrolled Section IDs: {enrolled_section_ids}")  # Debug for the entire list
+        # 7) render
+        print(f"[DEBUG] Schedule data being passed to template: {schedule1}")
         return render_template(
             "schedule.html",
             sections=sections,
@@ -471,6 +512,7 @@ def schedule():
                 "p_campus_available": camp,
             },
             username=username,
+            enrolled_section_ids=enrolled_section_ids,
         )
 
     except mysql.connector.Error as e:
@@ -478,10 +520,86 @@ def schedule():
         return "An internal error occurred", 500
 
     finally:
-        cursor.close()
-        # conn.close() # Removed:  The connection is now managed by the application context.
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
+def get_class_times_for_section(cursor, time_id):
+    sql = """
+        SELECT
+            time_start,
+            time_end,
+            monday,
+            tuesday,
+            wednesday,
+            thursday,
+            friday,
+            saturday,
+            sunday
+        FROM class_time
+        WHERE timeID = %s
+    """
+    cursor.execute(sql, (time_id,))
+    row = cursor.fetchone()
+    if not row:
+        return {}
 
+    # 🆕 Convert timedelta to readable "HH:MM" string
+    def format_timedelta(td):
+        if isinstance(td, datetime.timedelta):
+            total_seconds = int(td.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            return f"{hours:02d}:{minutes:02d}"
+        return str(td)  # fallback
+
+    time_start_str = format_timedelta(row['time_start'])
+    time_end_str = format_timedelta(row['time_end'])
+
+    # Build a list of weekday names that are marked true
+    days = []
+    for day in ('monday','tuesday','wednesday','thursday','friday','saturday','sunday'):
+        if row.get(day):
+            days.append(day.capitalize())
+
+    return {
+        'time_start': time_start_str,
+        'time_end': time_end_str,
+        'days': days
+    }
+@app.route('/get_enrolled_sections')
+def get_enrolled_sections():
+    if 'user_id' not in session:
+        return jsonify(success=False), 403
+    user_id = session['user_id']
+    print("USEDID: ", user_id)
+    conn = get_db_conn()
+    if not conn:
+        return jsonify(success=False), 500
+    cursor = conn.cursor(dictionary=True)
+    sql = """
+          SELECT s.sectionID,
+                 s.timeID,
+                 c.courseID,
+                 c.course_name,
+                 pr.prof_name
+          FROM enrollment e
+                   JOIN section s ON e.section_id = s.sectionID
+                   JOIN courses c ON s.courseID = c.courseID
+                   JOIN professor pr ON s.professorID = pr.professorID
+          WHERE e.user_id = %s
+          """
+    cursor.execute(sql, (user_id,))
+    enrolled = cursor.fetchall()
+
+    for section in enrolled:
+        class_time = get_class_times_for_section(cursor, section['timeID'])
+        section['class_times'] = [class_time] if class_time else []
+        section.pop('timeID', None)
+
+    cursor.close()
+    return jsonify(success=True, schedule=enrolled)
 
 
 @app.route('/enroll', methods=['POST'])
@@ -489,62 +607,79 @@ def enroll():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user_id = session['user_id']
-    username = session.get('username')  # Get username from session
-    section_id = request.json.get('sectionID')  # Get sectionID from the request
+    username = session.get('username')
+    section_id = request.json.get('sectionID')
 
-    conn = None
+    conn = get_db_conn()
+    if conn is None:
+        return jsonify(success=False, error="Failed to connect to the database"), 500
+
     cursor = None
     try:
-        conn = get_db_conn()
-        cursor = conn.cursor()
-        cur = cursor
-        print(f"Attempting to enroll user {username} in section {section_id}")  # Debugging
-        cur.execute(
-            "INSERT INTO enrollment (username, sectionID) VALUES (%s, %s)",
-            (username, section_id)  # Use username
+        cursor = conn.cursor(dictionary=True)
+        print(f"Attempting to enroll user {username} in section {section_id}")
+
+        # 1. Validate section exists
+        cursor.execute("SELECT sectionID FROM section WHERE sectionID = %s", (section_id,))
+        section_exists = cursor.fetchone()
+        if not section_exists:
+            return jsonify(success=False, error=f"Section with ID '{section_id}' does not exist."), 400
+
+        # 2. Get user_id
+        cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+        user_row = cursor.fetchone()
+        if user_row is None:
+            return jsonify(success=False, error=f"User with username '{username}' not found."), 400
+        actual_user_id = user_row['user_id']
+        print(f"Actual user ID from database: {actual_user_id}")
+
+        # 3. Insert into enrollment
+        cursor.execute(
+            "INSERT INTO enrollment (user_id, section_id) VALUES (%s, %s)",
+            (actual_user_id, section_id),
         )
         conn.commit()
         print("Enrollment successful")
-        #  Important:  Return the *updated* schedule data.
+
+        # 4. Fetch updated schedule (including timeID)
         sql = """
-              SELECT s.courseID,
+              SELECT s.sectionID,
+                     s.timeID,
+                     c.courseID,
                      c.course_name,
-                     DATE_FORMAT(ct.time_start, '%%H:%%i:%%s') AS time_start,
-                     DATE_FORMAT(ct.time_end, '%%H:%%i:%%s')   AS time_end,
-                     pr.prof_name,
-                     s.dates,
-                     s.sectionID
+                     pr.prof_name
               FROM enrollment e
-                       JOIN section s ON e.sectionID = s.sectionID
+                       JOIN section s ON e.section_id = s.sectionID
                        JOIN courses c ON s.courseID = c.courseID
-                       JOIN class_time ct ON s.timeID = ct.timeID
                        JOIN professor pr ON s.professorID = pr.professorID
-              WHERE e.username = %s  /* Changed to username */
-              ORDER BY ct.time_start
+              WHERE e.user_id = %s
               """
-        params = (username,)  # Use username
+        params = (actual_user_id,)
         cursor.execute(sql, params)
         updated_schedule = cursor.fetchall()
-        return jsonify(success=True, schedule=updated_schedule), 200  # Return updated schedule
+
+        # 5. Attach class_times for each section
+        for section in updated_schedule:
+            class_time = get_class_times_for_section(cursor, section['timeID'])
+            section['class_times'] = [class_time] if class_time else []
+            section.pop('timeID', None)  # 🔥 remove timeID before sending back
+
+        print(f"Updated schedule after enrollment: {updated_schedule}")
+        return jsonify(success=True, schedule=updated_schedule), 200
 
     except mysql.connector.Error as e:
         conn.rollback()
-        print(f"Error during enrollment: {e}")  # Log the full error
-        if e.sqlstate == '45000':
-            error_message = f"Enrollment failed: {e.msg}"
-            print(error_message)
-            return jsonify(success=False, error=error_message), 409
-        error_message = f"Database error during enrollment: {e}"
-        print(error_message)
-        return jsonify(success=False, error=error_message), 500
+        print(f"Error during enrollment: {e}")
+        if e.errno == 1062:
+            return jsonify(success=False, error="You are already enrolled in this section."), 409
+        elif e.errno == 1452:
+            return jsonify(success=False, error="The section ID you provided does not exist, or the user does not exist."), 400
+        else:
+            return jsonify(success=False, error=f"Database error during enrollment: {e}"), 500
 
     finally:
         if cursor:
             cursor.close()
-        # if conn: #Removed, connections are handled by the application context.
-        #     conn.close()
-        pass
-
 
 
 @app.route('/drop', methods=['POST'])
@@ -553,56 +688,58 @@ def drop():
         return redirect(url_for('login'))
     user_id = session['user_id']
     username = session.get('username')
-    section_id = request.json.get('sectionID')  # Get sectionID from the request
+    section_id = request.json.get('sectionID')
 
-    conn = None
+    conn = get_db_conn()
+    if conn is None:
+        return jsonify(success=False, error="Failed to connect to the database"), 500
     cursor = None
     try:
-        conn = get_db_conn()  # Use the database connection from the application context
-        cursor = conn.cursor()
-        cur = cursor
-        print(f"Attempting to drop user {username} from section {section_id}")  # Debugging
+        cursor = conn.cursor(dictionary=True)
+        print(f"Attempting to drop user {username} from section {section_id}")
+
+        # 1. Delete enrollment
         cursor.execute(
-            "DELETE FROM enrollment WHERE username=%s AND sectionID=%s",
-            (username, section_id)  # Use username
+            "DELETE FROM enrollment WHERE user_id=%s AND section_id=%s",
+            (user_id, section_id)
         )
         conn.commit()
         print("Drop successful")
 
-        # Return the updated schedule after successful drop
+        # 2. Query remaining enrolled sections (including timeID!!)
         sql = """
-              SELECT s.courseID,
+              SELECT s.sectionID,
+                     s.timeID,
+                     c.courseID,
                      c.course_name,
-                     DATE_FORMAT(ct.time_start, '%%H:%%i:%%s') AS time_start,
-                     DATE_FORMAT(ct.time_end, '%%H:%%i:%%s')   AS time_end,
-                     pr.prof_name,
-                     s.dates,
-                     s.sectionID
+                     pr.prof_name
               FROM enrollment e
-                       JOIN section s ON e.sectionID = s.sectionID
+                       JOIN section s ON e.section_id = s.sectionID
                        JOIN courses c ON s.courseID = c.courseID
-                       JOIN class_time ct ON s.timeID = ct.timeID
                        JOIN professor pr ON s.professorID = pr.professorID
-              WHERE e.username = %s /* Changed to username */
-              ORDER BY ct.time_start
+              WHERE e.user_id = %s
               """
-        params = (username,) # Use username
+        params = (user_id,)
         cursor.execute(sql, params)
         updated_schedule = cursor.fetchall()
-        return jsonify(success=True, schedule=updated_schedule), 200  # Return the updated schedule
+
+        # 3. Add class_times to each
+        for section in updated_schedule:
+            class_time = get_class_times_for_section(cursor, section['timeID'])
+            section['class_times'] = [class_time] if class_time else []
+        print(f"Updated schedule after drop: {updated_schedule}")
+
+        return jsonify(success=True, schedule=updated_schedule), 200
 
     except mysql.connector.Error as e:
         conn.rollback()
         print(f"Error dropping: {e}")
         error_message = f"Database error during drop: {e}"
-        print(error_message)
         return jsonify(success=False, error=error_message), 500
     finally:
         if cursor:
             cursor.close()
-        # if conn: #Removed, connections are handled by the application context.
-        #     conn.close()
-        pass
+
 
 if __name__ == "__main__":
     app.run(debug=False)
