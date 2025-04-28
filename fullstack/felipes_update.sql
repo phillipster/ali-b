@@ -1,3 +1,7 @@
+ALTER TABLE department
+ADD COLUMN url VARCHAR(255) AFTER department_name;
+
+
 UPDATE albert.department
    SET url = 'https://engineering.nyu.edu/academics/departments/aerospace-engineering'
  WHERE departmentID = 'AE';

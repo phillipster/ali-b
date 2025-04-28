@@ -258,17 +258,21 @@ def course_search():
     """
     course_args = []
 
+    where_conditions = []
     if degree_id:
         course_sql += " JOIN degree_requirements dr ON dr.courseID = c.courseID"
-        course_sql += " WHERE dr.degreeID = %s"
+        where_conditions.append("dr.degreeID = %s")
         course_args.append(degree_id)
 
     if min_cred is not None:
-        course_sql += " WHERE c.credits >= %s";
+        where_conditions.append("c.credits >= %s")
         course_args.append(min_cred)
     if max_cred is not None:
-        course_sql += " WHERE c.credits <= %s";
+        where_conditions.append("c.credits <= %s")
         course_args.append(max_cred)
+
+    if where_conditions:
+        course_sql += " WHERE " + " AND ".join(where_conditions)
 
     course_sql += " ORDER BY c.course_name"
     cur.execute(course_sql, course_args)
@@ -393,7 +397,17 @@ def professor_items():
     WHERE pd.departmentID = %s
    """
         args.append(department_id)
-
+    
+    try:
+        cursor.execute(sql, args)
+        items = cursor.fetchall()
+        return jsonify(items)
+    except mysql.connector.Error as e:
+        print(f"Error in professor_items: {e}")
+        return jsonify(error="Database error"), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/schedule', methods=['GET', 'POST'])
 def schedule():
