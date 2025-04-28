@@ -1,12 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Title</title>
-  <link rel="stylesheet" href="../static/styles/main.css">
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="../static/styles/main.css">
+    <style>
+        .outer-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        main {
+            width: 80%;
+            max-width: 800px;
+        }
+
+        header {
+            text-align: center;
+        }
+
+        /* Style the list */
+        main ul {
+            list-style-type: none; /* Remove bullets */
+            padding: 0;
+        }
+
+        main li {
+            margin-bottom: 15px; /* Add spacing between items */
+            font-size: 20px; /* Increase font size */
+        }
+    </style>
 </head>
 <body>
-  <div class="topnav">
+<div class="topnav">
     <a class="active" href="/">Home</a>
     <a href="/page/campuses">Campuses</a>
     <a href="/page/degree">Degrees</a>
@@ -15,28 +45,44 @@
     <a href="/course_search">Course Search</a>
     <a href="/page/schedule">Schedule Builder</a>
     <a href="/page/login">Login</a>
-  </div>
-  <header>
-    <div class="container">
-      <h1>
-          <span style="color: #ffd700;">😊</span> Ali-B <span style="color: #ffd700;">😉</span>
-      </h1>
-      <p>"If it is broke, fix it"</p>
-      <p>"bc albert brokey"</p>
-      <p style="font-weight: bold;">"~ very serious business only ~"</p>
-    </div>
+</div>
+<div class="outer-container">
+    <header>
+        <div class="container">
+            <h1>
+                <span style="color: #ffd700;">😊</span> Ali-B <span
+                    style="color: #ffd700;">😉</span>
+            </h1>
+            <p>"If it is broke, fix it"</p>
+            <p>"bc albert brokey"</p>
+            <p style="font-weight: bold;">"~ very serious business only ~"</p>
+        </div>
     </header>
     <main>
-      <div class="container">
-        <p>
-            As students, we understand that planning for course registration is often a hassle.
-            Searching for courses that are specific to your degree, a certain professor,
-            or certain time slot can be quite difficult to find with the current system.
-            So we decided to fix that by making Ali-B. We offer three main services:
-            an exhaustive all-in-one search system for all things registration,
-            a detailed course searching system, and an automatic schedule builder.
-        </p>
-      </div>
+        <div class="container">
+            <ul>
+                <li><a href="/page/campuses">Campuses</a> - Explore different
+                    campuses.
+                </li>
+                <li><a href="/page/degree">Degrees</a> - View available degrees and
+                    their descriptions.
+                </li>
+                <li><a href="/page/department">Departments</a> - Browse academic
+                    departments.
+                </li>
+                <li><a href="/page/professor">Staff Directory</a> - Find professors
+                    and their contact information.
+                </li>
+                <li><a href="/course_search">Course Search</a> - Search for courses
+                    based on various criteria.
+                </li>
+                <li><a href="/page/schedule">Schedule Builder</a> - Create your
+                    personalized course schedule.
+                </li>
+                <li><a href="/page/login">Login</a> - Log into your account.</li>
+            </ul>
+        </div>
     </main>
-</body>
-</html>
+  </div>
+ </body>
+ </html>

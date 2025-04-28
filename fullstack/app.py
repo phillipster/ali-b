@@ -326,6 +326,17 @@ def degree_items():
     return jsonify(items)
 
 
+@app.route("/api/departments")
+def department_items():
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT departmentID, department_name FROM department")
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
 @app.route("/api/professors")
 def professor_items():
     department_id = request.args.get('departmentID')
@@ -344,17 +355,6 @@ def professor_items():
         args.append(department_id)
 
     cursor.execute(sql, args)
-    items = cursor.fetchall()
-    cursor.close();
-    conn.close()
-    return jsonify(items)
-
-
-@app.route("/api/departments")
-def department_items():
-    conn = get_db_conn()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT departmentID, department_name FROM department")
     items = cursor.fetchall()
     cursor.close();
     conn.close()
