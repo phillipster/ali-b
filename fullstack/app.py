@@ -13,11 +13,10 @@ DB_CONFIG = {
     'database': 'albert'
 }
 
-
 def get_db_conn():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
-        print("Database connection established")  # Debug
+        print("Database connection established")
         return conn
     except mysql.connector.Error as err:
         print(f"Error: {err}")
@@ -27,7 +26,7 @@ def get_db_conn():
 def close_db_conn(conn):
     if conn and conn.is_connected():
         conn.close()
-        print("Database connection closed") # Debug
+        print("Database connection closed")
 
 #
 def get_user_by_username(username):
@@ -38,17 +37,15 @@ def get_user_by_username(username):
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
         query = "SELECT User, Password FROM mysql.user WHERE User = %s"
-        print(f"Executing query: {query}, with username: {username}")
         cursor.execute(query, (username,))
         user = cursor.fetchone()
-        print(f"User found: {user}")
     except mysql.connector.Error as err:
         print(f"Error: {err}")
     finally:
-        if cursor:  # Check if cursor exists before closing
+        if cursor:
             cursor.close()
         if conn:
-            conn.close()
+            close_db_conn(conn)
     return user
 
 
@@ -60,23 +57,17 @@ def get_user_roles(username):
         conn = get_db_conn()
         cursor = conn.cursor()
         query = f"SHOW GRANTS FOR '{username}'@'localhost'"
-        print(f"Executing role query (SHOW GRANTS): {query}")
         cursor.execute(query)
         results = cursor.fetchall()
-        print(f"Grants found: {results}")
-
         for row in results:
-            grant_statement = row[0]  # Each row is a grant statement
+            grant_statement = row[0]
             if grant_statement.startswith("GRANT `"):
-                # Extract the role name
                 parts = grant_statement.split(" TO ")
                 if len(parts) > 0:
                     role_part = parts[0]
-                    role_name = role_part.split("`")[1]  # Get the role name within backticks
+                    role_name = role_part.split("`")[1]
                     roles.append(role_name)
-        print(f"Roles found (SHOW GRANTS): {roles}")
         return roles
-
     except mysql.connector.Error as err:
         print(f"Error getting user roles: {err}")
         return []
@@ -84,11 +75,14 @@ def get_user_roles(username):
         if cursor:
             cursor.close()
         if conn:
-            conn.close()
+            close_db_conn(conn)
 
 
-def authenticate_user(username, password, selected_role):
-    # ... (rest of the function)
+def authenticate_user(username, password, selected_role, instructor_passcode=None):
+    """
+    Authenticates a user based on username, password, selected role,
+    and an optional instructor passcode.
+    """
     try:
         conn = get_db_conn()
         cursor = conn.cursor(dictionary=True)
@@ -99,18 +93,17 @@ def authenticate_user(username, password, selected_role):
         if user:
             user_roles = get_user_roles(username)
             if selected_role in user_roles:
-                # Fetch the user_id from the 'users' table
                 cursor.execute("SELECT user_id FROM users WHERE username = %s", (username,))
                 user_data = cursor.fetchone()
                 actual_user_id = user_data['user_id'] if user_data else None
 
                 if selected_role == 'faculty':
-                    if instructor_passcode == "I<3Arfaoui":
-                        return True, actual_user_id, selected_role # Return the actual user_id
+                    if instructor_passcode == "12345":
+                        return True, actual_user_id, selected_role
                     else:
                         return False, None, None
                 else:
-                    return True, actual_user_id, selected_role # Return the actual user_id
+                    return True, actual_user_id, selected_role
             else:
                 return False, None, None
         else:
@@ -122,8 +115,32 @@ def authenticate_user(username, password, selected_role):
         if cursor:
             cursor.close()
         if conn:
-            conn.close()
+            close_db_conn(conn)
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        role = request.form['role']
+        instructor_passcode = request.form.get('instructor_passcode')
+        success, actual_user_id, user_role = authenticate_user(username, password, role, instructor_passcode)
+        if success:
+            print(f"[DEBUG - /login] Successful login. User ID: {actual_user_id}")
+            session['user_id'] = actual_user_id
+            session['role'] = user_role
+            session['username'] = username
+            return redirect(url_for('schedule'))
+        else:
+            error = 'Invalid username, password, or selected role'
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    # Clear the session when the user logs out.
+    session.clear()
+    return redirect(url_for('login'))
 
 def create_new_user(username, password, role):
     """
@@ -184,6 +201,10 @@ def create_user_route():
             error = "Invalid role.  Must be 'student' or 'faculty'."
         elif get_user_by_username(username):
             error = "Username already exists."
+        # elif role == 'faculty' :
+            # instructor_creation_passcode = request.form.get('instructor_passcode')
+            # if instructor_creation_passcode != "12345":
+            #     error = "Incorrect instructor creation passcode."
 
         if not error:
             success, message = create_new_user(username, password, role)
@@ -195,32 +216,6 @@ def create_user_route():
 
     return render_template('create_user.html', error=error,
                            success_message=success_message)
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        role = request.form['role']
-        instructor_passcode = request.form.get('instructor_passcode')
-        success, actual_user_id, user_role = authenticate_user(username, password, role) # Receive actual_user_id
-        if success:
-            print(f"[DEBUG - /login] Successful login. User ID: {actual_user_id}")
-            session['user_id'] = actual_user_id # Store the actual user_id in the session
-            session['role'] = user_role
-            session['username'] = username
-            return redirect(url_for('schedule'))
-        else:
-            error = 'Invalid username, password, or selected role'
-    return render_template('login.html', error=error)
-@app.route('/logout')
-def logout():
-    # Clear the session when the user logs out.
-    session.clear()
-    return redirect(url_for('login'))
-
 
 @app.route('/dashboard')
 def dashboard():
