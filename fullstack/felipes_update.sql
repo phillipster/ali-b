@@ -1,3 +1,111 @@
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/aerospace-engineering'
+ WHERE departmentID = 'AE';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/biomedical-engineering'
+ WHERE departmentID = 'BMS';
+
+UPDATE albert.department
+   SET url = 'https://steinhardt.nyu.edu/academics/programs/culture-arts-media'
+ WHERE departmentID = 'CAM';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/chemical-and-biological-engineering'
+ WHERE departmentID = 'CBE';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/civil-and-urban-engineering'
+ WHERE departmentID = 'CE';
+
+UPDATE albert.department
+   SET url = 'https://as.nyu.edu/departments/chemistry.html'
+ WHERE departmentID = 'CM';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/experiential-learning/co-op'
+ WHERE departmentID = 'CP';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/computer-science'
+ WHERE departmentID = 'CS';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/integrated-design-and-media'
+ WHERE departmentID = 'DM';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/electrical-and-computer-engineering'
+ WHERE departmentID = 'ECE';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/general-engineering'
+ WHERE departmentID = 'EG';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/calendars/final-exam-schedule'
+ WHERE departmentID = 'EX';
+
+UPDATE albert.department
+   SET url = 'https://www.stern.nyu.edu/programs-admissions/undergraduate/academics/major-curriculum/finance'
+ WHERE departmentID = 'FIN';
+
+UPDATE albert.department
+   SET url = 'https://steinhardt.nyu.edu/academics/programs/interdisciplinary-studies'
+ WHERE departmentID = 'IS';
+
+UPDATE albert.department
+   SET url = 'https://math.nyu.edu/'
+ WHERE departmentID = 'MA';
+
+UPDATE albert.department
+   SET url = 'https://steinhardt.nyu.edu/academics/programs/media-studies'
+ WHERE departmentID = 'MD';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/departments/mechanical-and-aerospace-engineering'
+ WHERE departmentID = 'ME';
+
+UPDATE albert.department
+   SET url = 'https://www.stern.nyu.edu/programs-admissions/undergraduate/academics/major-curriculum/management'
+ WHERE departmentID = 'MG';
+
+UPDATE albert.department
+   SET url = 'https://as.nyu.edu/departments/physics.html'
+ WHERE departmentID = 'PH';
+
+UPDATE albert.department
+   SET url = 'https://as.nyu.edu/student-life/resources/pre-health-advising.html'
+ WHERE departmentID = 'PHP';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/research/robotics'
+ WHERE departmentID = 'ROB';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/current-students/student-life'
+ WHERE departmentID = 'SL';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/research'
+ WHERE departmentID = 'STS';
+
+UPDATE albert.department
+   SET url = 'https://steinhardt.nyu.edu/academics/programs/technology-culture-and-society'
+ WHERE departmentID = 'TCS';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/undergraduate'
+ WHERE departmentID = 'UGA';
+
+UPDATE albert.department
+   SET url = 'https://as.nyu.edu/academics/undergraduate-degree-programs/urban-studies.html'
+ WHERE departmentID = 'URB';
+
+UPDATE albert.department
+   SET url = 'https://engineering.nyu.edu/academics/experiential-learning/vertically-integrated-projects'
+ WHERE departmentID = 'VIP';
+
 create table campus
 (
     campusID    int          not null
