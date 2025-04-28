@@ -197,6 +197,8 @@ def course_search():
 def load_page(page):
     if page == "schedule":
         return schedule_maker()
+    if page == "professor":
+        return render_template("professor.html")
 
     # otherwise render the plain template
     return render_template(f"{page}.html")
@@ -235,6 +237,41 @@ def degree_items():
         cursor.execute(sql, (school_id,))
     else:
         cursor.execute(sql)
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
+@app.route("/api/professors")
+def professor_items():
+    department_id = request.args.get('departmentID')
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    sql = """
+   SELECT p.professorID, p.prof_name, p.prof_email
+   FROM professor p
+  """
+    args = []
+    if department_id:
+        sql += """
+    JOIN professor_department pd ON p.professorID = pd.professorID
+    WHERE pd.departmentID = %s
+   """
+        args.append(department_id)
+
+    cursor.execute(sql, args)
+    items = cursor.fetchall()
+    cursor.close();
+    conn.close()
+    return jsonify(items)
+
+
+@app.route("/api/departments")
+def department_items():
+    conn = get_db_conn()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT departmentID, department_name FROM department")
     items = cursor.fetchall()
     cursor.close();
     conn.close()

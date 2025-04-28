@@ -1,28 +1,37 @@
-create table degree
+-- auto-generated definition
+create table professor
 (
-    degreeID    int           not null
+    professorID int          not null
         primary key,
-    degree_name varchar(1000) null,
-    schoolID    varchar(10)   null,
-    url         varchar(1000) null,
-    description varchar(1000) null,
-    constraint degree_ibfk_1
+    prof_name   varchar(500) null,
+    prof_email  varchar(100) null
+);
+
+-- auto-generated definition
+create table professor_department
+(
+    professorID  int          not null,
+    departmentID varchar(100) not null,
+    primary key (professorID, departmentID),
+    constraint professor_department_ibfk_1
+        foreign key (professorID) references professor (professorID),
+    constraint professor_department_ibfk_2
+        foreign key (departmentID) references department (departmentID)
+);
+
+create index departmentID
+    on professor_department (departmentID);
+
+-- auto-generated definition
+create table department
+(
+    departmentID    varchar(10)  not null
+        primary key,
+    department_name varchar(500) null,
+    schoolID        varchar(10)  null,
+    constraint department_ibfk_1
         foreign key (schoolID) references school (schoolID)
 );
 
 create index schoolID
-    on degree (schoolID);
-
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (1, 'Applied Physics', 'Y', 'https://engineering.nyu.edu/programs/applied-physics-bs', 'Applied Physics is devoted to the study and understanding of nature. Considered the most fundamental science, it deals with the constituents, properties, and evolution of the entire universe, from the smallest subatomic particles to the largest galaxies.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (2, 'Biomolecular Science', 'Y', 'https://engineering.nyu.edu/academics/programs/biomolecular-science-bs', 'Scientists working at the interface between biology and chemistry create big changes while working on the cellular and molecular level.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (3, 'Business and Technology Management', 'Y', 'https://engineering.nyu.edu/academics/programs/business-and-technology-management-bs', 'Oriented toward current and future high growth arenas, the Business and Technology Management (BTM) trains business leaders of tomorrow. You’ll become deeply familiar with technology and innovation and work in diverse venues.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (4, 'Chemical and Biomolecular Engineering', 'Y', 'Chemical and Biomolecular Engineering, B.S.', 'As a chemical and biomolecular engineer, you\'ll become part of a field that has contributed to the development of virtually every material common to modern life and emerging technologies.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (5, 'Civil Enginering', 'Y', 'https://engineering.nyu.edu/academics/programs/civil-engineering-bs', 'Civil engineering includes everything from the design and construction of buildings, bridges, and roads to securing our water resources and preparing for pressing environmental and social challenges.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (6, 'Computer Engineering', 'Y', 'https://engineering.nyu.edu/academics/programs/computer-engineering-bs', 'Computer engineers develop products that touch nearly every part of our lives, from sending e-mails from cell phones to reconstructing genomes. That’s just the kind of invention & innovation the School of Engineering encourages.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (7, 'Computer Science', 'Y', 'https://engineering.nyu.edu/academics/programs/computer-science-bs', 'Computer science focuses on designing, building, and using the computers and systems that we interact with every day — from iPhones to the complex databases in banks and hospitals.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (8, 'Electrical and Computer Engineering', 'Y', 'https://engineering.nyu.edu/academics/programs/electrical-engineering-and-computer-engineering-bs', 'Electrical Engineering and Computer Engineering are both extremely pertinent in today\'s high technology and global world, and this program gives students opportunities to garner knowledge from both disciplines.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (9, 'Electrical Engineering', 'Y', 'https://engineering.nyu.edu/academics/programs/electrical-engineering-bs', 'From the subway systems beneath our cities to the HD televisions on our walls, innovations by electrical engineers touch every aspect of modern life, but new challenges await the electrical engineers of tomorrow.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (10, 'Integrated Design and Media', 'Y', 'https://engineering.nyu.edu/academics/programs/integrated-design-media-bs', 'Our Bachelor of Science Integrated Design & Media (IDM) program centers around the IDM core, a suite of courses that focus on the four areas of Image, Sound, Narrative, and Interactivity.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (11, 'Mathematics', 'Y', 'https://engineering.nyu.edu/academics/programs/mathematics-bs', 'Mathematics forms the backbone of scientific fields, like physics, engineering, and computer science. With a firm grasp of mathematics, you’ll have the foundation to launch explorations of related disciplines.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (12, 'Mathematics and Physics', 'Y', 'https://engineering.nyu.edu/academics/programs/mathematics-and-physics-bs', 'Mathematics has applications to nearly every branch of science and engineering, and advances in physics — for example, those in electromagnetism and thermodynamics — often resonate deeply with mathematics.');
-INSERT INTO albert.degree (degreeID, degree_name, schoolID, url, description) VALUES (13, 'Mechanical Engineering', 'Y', 'https://engineering.nyu.edu/academics/programs/mechanical-engineering-bs', 'Mechanical engineering builds the physical systems and devices that define modern society — everything from air conditioning to automobiles, robots to power plants, artificial limbs to escalators.');
+    on department (schoolID);
