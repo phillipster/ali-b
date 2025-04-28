@@ -202,9 +202,9 @@ def create_user_route():
         elif get_user_by_username(username):
             error = "Username already exists."
         # elif role == 'faculty' :
-            # instructor_creation_passcode = request.form.get('instructor_passcode')
-            # if instructor_creation_passcode != "12345":
-            #     error = "Incorrect instructor creation passcode."
+        #     instructor_creation_passcode = request.form.get('instructor_passcode')
+        #     if instructor_creation_passcode != "12345":
+        #         error = "Incorrect instructor creation passcode."
 
         if not error:
             success, message = create_new_user(username, password, role)
