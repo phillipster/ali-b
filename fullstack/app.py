@@ -590,6 +590,37 @@ def get_class_times_for_section(cursor, time_id):
         'time_end': time_end_str,
         'days': days
     }
+
+@app.route('/update_course_credits', methods=['POST'])
+def update_course_credits():
+    if 'user_id' not in session or session.get('role') != 'faculty':
+        return jsonify(success=False, error="Unauthorized"), 403
+
+    course_id = request.form.get('courseID')
+    new_credits = request.form.get('credits', type=int)
+
+    if not course_id or new_credits is None:
+        return jsonify(success=False, error="Missing courseID or credits"), 400
+
+    conn = get_db_conn()
+    if not conn:
+        return jsonify(success=False, error="Database connection failed"), 500
+
+    cursor = conn.cursor()
+    try:
+        update_query = "UPDATE courses SET credits = %s WHERE courseID = %s"
+        cursor.execute(update_query, (new_credits, course_id))
+        conn.commit()
+        return jsonify(success=True, message=f"Course {course_id} credits updated to {new_credits}")
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify(success=False, error=f"Database error: {err}"), 500
+    finally:
+        if cursor:
+            cursor.close()
+        close_db_conn(conn)
+
+        
 @app.route('/get_enrolled_sections')
 def get_enrolled_sections():
     if 'user_id' not in session:

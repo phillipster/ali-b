@@ -4,7 +4,28 @@
   <meta charset="UTF-8">
   <title>Course Search</title>
   <style>
-    body { font-family: sans-serif; margin: 0; }
+    body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; }
+    .topnav {
+      background-color: #333;
+      overflow: hidden;
+    }
+    .topnav a {
+      float: left;
+      color: #f2f2f2;
+      text-align: center;
+      padding: 14px 16px;
+      text-decoration: none;
+      font-size: 17px;
+    }
+    .topnav a:hover {
+      background-color: #ddd;
+      color: black;
+    }
+    .topnav a.active {
+      background-color: #007bff;
+      color: white;
+    }
+    .content-area { display: flex; flex: 1; }
     aside { width: 240px; padding: 1em; background: #f7f7f7; box-sizing: border-box; }
     main  { flex: 1; padding: 1em; box-sizing: border-box; }
     table { width: 100%; border-collapse: collapse; margin-top: 1em; }
@@ -15,9 +36,14 @@
     .filters input,
     .filters select { width: 100%; padding: 0.3em; box-sizing: border-box; }
     .filters button { margin-right: 0.5em; }
+    .update-credits-container { margin-top: 1.5em; border-top: 1px solid #ccc; padding-top: 1em; }
+    .update-credits-container h3 { margin-top: 0; margin-bottom: 0.5em; }
+    .update-credits-form div { margin-bottom: 0.6em; }
+    .update-credits-form label { display: block; font-weight: bold; margin-bottom: 0.2em; }
+    .update-credits-form input[type="text"],
+    .update-credits-form input[type="number"] { width: 90%; padding: 0.3em; box-sizing: border-box; }
+    .update-credits-form button { padding: 0.4em 0.8em; font-size: smaller; }
   </style>
-  <link rel="stylesheet" href="../static/styles/topnav.css">
-
 </head>
 <body>
   <div class="topnav">
@@ -28,9 +54,13 @@
     <a href="/page/professor">Staff Directory</a>
     <a class="active" href="/course_search">Course Search</a>
     <a href="/page/schedule">Schedule Builder</a>
+    {% if session['user_id'] %}
+    <a href="/logout">Logout</a>
+    {% else %}
     <a href="/page/login">Login</a>
+    {% endif %}
   </div>
-  <div style="display:flex;">
+  <div class="content-area">
     <aside>
       <h2>Filters</h2>
       <form method="get" class="filters">
@@ -82,6 +112,22 @@
             Clear
           </button>
         </div>
+        {% if session['role'] == 'faculty' %}
+        <div class="update-credits-container">
+          <h3>Update Course Credits</h3>
+          <form method="POST" action="{{ url_for('update_course_credits') }}" class="update-credits-form">
+            <div>
+              <label for="courseID">Course ID:</label>
+              <input type="text" id="courseID" name="courseID" required>
+            </div>
+            <div>
+              <label for="credits">New Credits:</label>
+              <input type="number" id="credits" name="credits" required>
+            </div>
+            <button type="submit">Update</button>
+          </form>
+        </div>
+        {% endif %}
       </form>
     </aside>
 
