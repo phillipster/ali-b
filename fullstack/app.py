@@ -29,7 +29,7 @@ def close_db_conn(conn):
         conn.close()
         print("Database connection closed") # Debug
 
-
+#
 def get_user_by_username(username):
     conn = None
     cursor = None
