@@ -2,61 +2,145 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Create Account</title>
-  <link rel="stylesheet" href="../static/styles/main.css">
+  <title>Course Search</title>
   <style>
-    .form-group { margin-bottom: 15px; }
-    .error { color: red; }
-    #passcode-group { display: none; } /* Initially hide the passcode group using CSS */
+    body { font-family: sans-serif; margin: 0; }
+    aside { width: 240px; padding: 1em; background: #f7f7f7; box-sizing: border-box; }
+    main  { flex: 1; padding: 1em; box-sizing: border-box; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+    th { background: #eee; }
+    .filters div { margin-bottom: 1em; }
+    .filters label { display: block; font-weight: bold; margin-bottom: 0.3em; }
+    .filters input,
+    .filters select { width: 100%; padding: 0.3em; box-sizing: border-box; }
+    .filters button { margin-right: 0.5em; }
   </style>
+      <link rel="stylesheet" href="../static/styles/topnav.css">
+
 </head>
 <body>
   <div class="topnav">
-    </div>
-
-  <div class="container">
-    <h2>Create Account</h2>
-    {% if error %}
-      <p class="error">{{ error }}</p>
-    {% endif %}
-    <form method="POST">
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" name="username" id="username" required>
-      </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" name="password" id="password" required>
-      </div>
-      <div class="form-group">
-        <label for="role-select">Role</label>
-        <select name="role" id="role-select" required>
-          <option value="">-- Select Role --</option>
-          <option value="student">Student</option>
-          <option value="faculty">Instructor</option>
-        </select>
-      </div>
-      <div class="form-group" id="passcode-group">
-        <label for="instructor_passcode">Instructor Passcode</label>
-        <input type="password" name="instructor_passcode" id="instructor_passcode">
-      </div>
-      <button type="submit">Create</button>
-    </form>
+    <a href="/">Home</a>
+    <a href="/page/campuses">Campuses</a>
+    <a href="/page/degree">Degrees</a>
+    <a href="/page/department">Departments</a>
+    <a href="/page/professor">Staff Directory</a>
+    <a class="active" href="/course_search">Course Search</a>
+    <a href="/page/schedule">Schedule Builder</a>
+    <a href="/page/login">Login</a>
   </div>
+  <div style="display:flex;">
+    <aside>
+      <h2>Filters</h2>
+      <form method="get" class="filters">
+        <div>
+          <label for="prof_name">Professor (name contains)</label>
+          <input
+            type="text"
+            id="prof_name"
+            name="prof_name"
+            placeholder="e.g. Smith"
+            value="{{ filters.get('prof_name','') }}"
+          >
+        </div>
+        <div>
+          <label for="min_credits">Min Credits</label>
+          <input
+            type="number"
+            id="min_credits"
+            name="min_credits"
+            min="0"
+            value="{{ filters.get('min_credits','') }}"
+          >
+        </div>
+        <div>
+          <label for="max_credits">Max Credits</label>
+          <input
+            type="number"
+            id="max_credits"
+            name="max_credits"
+            min="0"
+            value="{{ filters.get('max_credits','') }}"
+          >
+        </div>
+        <div>
+          <label for="degree_id">Degree Requirement</label>
+          <select id="degree_id" name="degree_id">
+            <option value="">Any</option>
+            {% for d in degrees %}
+              <option value="{{ d.degreeID }}"
+                {% if filters.get('degree_id','')|int == d.degreeID %}selected{% endif %}>
+                {{ d.degree_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <button type="submit">Apply Filters</button>
+          <button type="reset" onclick="window.location='?';return false;">
+            Clear
+          </button>
+        </div>
+      </form>
+    </aside>
 
-  <script>
-    const roleSelect = document.getElementById('role-select');
-    const passcodeGroup = document.getElementById('passcode-group');
-    const instructorPasscodeInput = document.getElementById('instructor_passcode');
+    <main>
+      {# If user entered prof_name, show the "sections" list as courses by that prof #}
+      {% if filters.get('prof_name') %}
+        <h1>Courses taught by “{{ filters.get('prof_name','') }}” ({{ sections|length }})</h1>
+        {% if sections %}
+          <table>
+            <thead>
+              <tr>
+                <th>Course ID</th>
+                <th>Course Name</th>
+                <th>Credits</th>
+                <th>Professor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in sections %}
+                <tr>
+                  <td>{{ s.courseID }}</td>
+                  <td>{{ s.course_name }}</td>
+                  <td>{{ s.credits }}</td>
+                  <td>{{ s.prof_name }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p><em>No courses found for that professor.</em></p>
+        {% endif %}
 
-    roleSelect.addEventListener('change', () => {
-      if (roleSelect.value === 'faculty') {
-        passcodeGroup.style.display = 'block';
-      } else {
-        passcodeGroup.style.display = 'none';
-        instructorPasscodeInput.value = ''; // Clear the passcode if the role changes
-      }
-    });
-  </script>
+      {# Otherwise, show the regular courses table #}
+      {% else %}
+        <h1>Courses{% if courses %} ({{ courses|length }}){% endif %}</h1>
+        {% if courses %}
+          <table>
+            <thead>
+              <tr>
+                <th>Course ID</th>
+                <th>Course Name</th>
+                <th>Credits</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in courses %}
+                <tr>
+                  <td>{{ c.courseID }}</td>
+                  <td>{{ c.course_name }}</td>
+                  <td>{{ c.credits }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p><em>No courses match your filters.</em></p>
+        {% endif %}
+      {% endif %}
+    </main>
+  </div>
 </body>
 </html>
