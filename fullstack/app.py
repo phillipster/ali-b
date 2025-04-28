@@ -127,24 +127,36 @@ def authenticate_user(username, password, selected_role):
 
 def create_new_user(username, password, role):
     """
-    Creates a new user in the database.
+    Creates a new user in the MySQL user table and your application's users table.
+    Assumes 'users' table has auto-incrementing 'user_id' and 'username'.
     """
     conn = None
     cursor = None
     try:
         conn = get_db_conn()
         cursor = conn.cursor()
+
+        # 1. Create the user in MySQL user management
         create_user_sql = f"CREATE USER %s@'localhost' IDENTIFIED BY %s"
         cursor.execute(create_user_sql, (username, password))
-        print('executed user creation')
+        print('executed MySQL user creation')
+
+        # 2. Grant the specified role
         grant_role_sql = f"GRANT {role} TO %s@'localhost'"
         cursor.execute(grant_role_sql, (username,))
         print('role granted')
+
+        # 3. Insert the user into your 'users' table (user_id will auto-increment)
+        insert_user_sql = "INSERT INTO users (username) VALUES (%s)"
+        cursor.execute(insert_user_sql, (username,))
+        print('inserted user into users table')
+
         conn.commit()
         return True, "User created successfully."
 
     except mysql.connector.Error as err:
-        conn.rollback()
+        if conn:
+            conn.rollback()
         error_message = f"Error creating user: {err}"
         print(error_message)
         return False, error_message
@@ -152,7 +164,7 @@ def create_new_user(username, password, role):
         if cursor:
             cursor.close()
         if conn:
-            conn.close()
+            close_db_conn(conn)
 
 
 @app.route('/create_user', methods=['GET', 'POST'])
@@ -195,6 +207,7 @@ def login():
         instructor_passcode = request.form.get('instructor_passcode')
         success, actual_user_id, user_role = authenticate_user(username, password, role) # Receive actual_user_id
         if success:
+            print(f"[DEBUG - /login] Successful login. User ID: {actual_user_id}")
             session['user_id'] = actual_user_id # Store the actual user_id in the session
             session['role'] = user_role
             session['username'] = username
