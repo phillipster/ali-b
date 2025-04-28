@@ -1585,7 +1585,7 @@ CREATE TRIGGER `prevent_time_conflict` BEFORE INSERT ON enrollment FOR EACH ROW 
     JOIN class_time ct1 ON s1.timeID = ct1.timeID
     JOIN section s2 ON s2.sectionID = NEW.sectionID
     JOIN class_time ct2 ON s2.timeID = ct2.timeID
-    WHERE e.user_id = NEW.user_id
+    WHERE e.username = NEW.username
       AND (
            -- Check overlapping days
            (ct1.monday AND ct2.monday) OR

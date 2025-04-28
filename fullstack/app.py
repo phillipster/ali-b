@@ -391,19 +391,19 @@ def schedule():
     user_id = session['user_id']
     username = session.get('username')
 
-    conn = get_db_conn()
+    conn = get_db_conn()  # Use the database connection from the context
     cursor = conn.cursor(dictionary=True)
     try:
         # 1) Read filters (defaults: "" or -1)
         vals = request.values  # covers both GET & POST
-        dept   = vals.get('p_department',       "").strip()
-        cid    = vals.get('p_courseID',         "").strip()
-        cname  = vals.get('p_course_name',      "").strip()
-        desc   = vals.get('p_description_includes', "").strip()
-        prof   = vals.get('p_professor',        "").strip()
-        min_cr = int(vals.get('p_min_credits',  -1) or -1)
-        max_cr = int(vals.get('p_max_credits',  -1) or -1)
-        camp   = vals.get('p_campus_available', "").strip()
+        dept = vals.get('p_department', "").strip()
+        cid = vals.get('p_courseID', "").strip()
+        cname = vals.get('p_course_name', "").strip()
+        desc = vals.get('p_description_includes', "").strip()
+        prof = vals.get('p_professor', "").strip()
+        min_cr = int(vals.get('p_min_credits', -1) or -1)
+        max_cr = int(vals.get('p_max_credits', -1) or -1)
+        camp = vals.get('p_campus_available', "").strip()
 
         print("--- calling find_section with ---")
         print(dept, cid, cname, desc, prof, min_cr, max_cr, camp)
@@ -435,19 +435,20 @@ def schedule():
 
         # 5) one-param query for this user
         sql = """
-              SELECT s.courseID, \
-                     c.course_name, \
-                     DATE_FORMAT(ct.time_start, '%%H:%%i:%%s') AS time_start, \
-                     DATE_FORMAT(ct.time_end, '%%H:%%i:%%s')   AS time_end, \
-                     pr.prof_name, \
-                     s.dates
+              SELECT s.courseID,
+                     c.course_name,
+                     DATE_FORMAT(ct.time_start, '%%H:%%i:%%s') AS time_start,
+                     DATE_FORMAT(ct.time_end, '%%H:%%i:%%s')   AS time_end,
+                     pr.prof_name,
+                     s.dates,
+                     s.sectionID  /* Include sectionID in the query */
               FROM enrollment e
                        JOIN section s ON e.sectionID = s.sectionID
                        JOIN courses c ON s.courseID = c.courseID
                        JOIN class_time ct ON s.timeID = ct.timeID
                        JOIN professor pr ON s.professorID = pr.professorID
-              WHERE e.user_id = %s
-              ORDER BY ct.time_start \
+              WHERE e.username = %s
+              ORDER BY ct.time_start
               """
         params = (user_id,)
         cursor.execute(sql, params)
@@ -460,14 +461,14 @@ def schedule():
             campuses=campuses,
             schedule=schedule1,
             filters={
-              "p_department":           dept,
-              "p_courseID":             cid,
-              "p_course_name":          cname,
-              "p_description_includes": desc,
-              "p_professor":            prof,
-              "p_min_credits":          min_cr if min_cr != -1 else "",
-              "p_max_credits":          max_cr if max_cr != -1 else "",
-              "p_campus_available":     camp,
+                "p_department": dept,
+                "p_courseID": cid,
+                "p_course_name": cname,
+                "p_description_includes": desc,
+                "p_professor": prof,
+                "p_min_credits": min_cr if min_cr != -1 else "",
+                "p_max_credits": max_cr if max_cr != -1 else "",
+                "p_campus_available": camp,
             },
             username=username,
         )
@@ -478,13 +479,18 @@ def schedule():
 
     finally:
         cursor.close()
-        conn.close()
+        # conn.close() # Removed:  The connection is now managed by the application context.
+
+
 
 
 @app.route('/enroll', methods=['POST'])
 def enroll():
-    user_id = session.get('user_id')
-    section_id = request.json.get('sectionID')
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
+    username = session.get('username')  # Get username from session
+    section_id = request.json.get('sectionID')  # Get sectionID from the request
 
     conn = None
     cursor = None
@@ -492,52 +498,111 @@ def enroll():
         conn = get_db_conn()
         cursor = conn.cursor()
         cur = cursor
+        print(f"Attempting to enroll user {username} in section {section_id}")  # Debugging
         cur.execute(
-            "INSERT INTO enrollment (user_id, sectionID) VALUES (%s, %s)",
-            (user_id, section_id)
+            "INSERT INTO enrollment (username, sectionID) VALUES (%s, %s)",
+            (username, section_id)  # Use username
         )
         conn.commit()
-        return jsonify(success=True), 200
+        print("Enrollment successful")
+        #  Important:  Return the *updated* schedule data.
+        sql = """
+              SELECT s.courseID,
+                     c.course_name,
+                     DATE_FORMAT(ct.time_start, '%%H:%%i:%%s') AS time_start,
+                     DATE_FORMAT(ct.time_end, '%%H:%%i:%%s')   AS time_end,
+                     pr.prof_name,
+                     s.dates,
+                     s.sectionID
+              FROM enrollment e
+                       JOIN section s ON e.sectionID = s.sectionID
+                       JOIN courses c ON s.courseID = c.courseID
+                       JOIN class_time ct ON s.timeID = ct.timeID
+                       JOIN professor pr ON s.professorID = pr.professorID
+              WHERE e.username = %s  /* Changed to username */
+              ORDER BY ct.time_start
+              """
+        params = (username,)  # Use username
+        cursor.execute(sql, params)
+        updated_schedule = cursor.fetchall()
+        return jsonify(success=True, schedule=updated_schedule), 200  # Return updated schedule
 
     except mysql.connector.Error as e:
         conn.rollback()
+        print(f"Error during enrollment: {e}")  # Log the full error
         if e.sqlstate == '45000':
-            return jsonify(success=False, error=e.msg), 409
-        return jsonify(success=False, error="DB error"), 500
+            error_message = f"Enrollment failed: {e.msg}"
+            print(error_message)
+            return jsonify(success=False, error=error_message), 409
+        error_message = f"Database error during enrollment: {e}"
+        print(error_message)
+        return jsonify(success=False, error=error_message), 500
 
     finally:
         if cursor:
             cursor.close()
-        if conn:
-            conn.close()
+        # if conn: #Removed, connections are handled by the application context.
+        #     conn.close()
+        pass
 
 
 
 @app.route('/drop', methods=['POST'])
 def drop():
-    user_id = session.get('user_id')
-    section_id = request.json.get('sectionID')
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
+    username = session.get('username')
+    section_id = request.json.get('sectionID')  # Get sectionID from the request
+
     conn = None
     cursor = None
     try:
-        conn = get_db_conn()
+        conn = get_db_conn()  # Use the database connection from the application context
         cursor = conn.cursor()
         cur = cursor
-        cur.execute(
-            "DELETE FROM enrollment WHERE user_id=%s AND sectionID=%s",
-            (user_id, section_id)
+        print(f"Attempting to drop user {username} from section {section_id}")  # Debugging
+        cursor.execute(
+            "DELETE FROM enrollment WHERE username=%s AND sectionID=%s",
+            (username, section_id)  # Use username
         )
         conn.commit()
-        return jsonify(success=True)
+        print("Drop successful")
+
+        # Return the updated schedule after successful drop
+        sql = """
+              SELECT s.courseID,
+                     c.course_name,
+                     DATE_FORMAT(ct.time_start, '%%H:%%i:%%s') AS time_start,
+                     DATE_FORMAT(ct.time_end, '%%H:%%i:%%s')   AS time_end,
+                     pr.prof_name,
+                     s.dates,
+                     s.sectionID
+              FROM enrollment e
+                       JOIN section s ON e.sectionID = s.sectionID
+                       JOIN courses c ON s.courseID = c.courseID
+                       JOIN class_time ct ON s.timeID = ct.timeID
+                       JOIN professor pr ON s.professorID = pr.professorID
+              WHERE e.username = %s /* Changed to username */
+              ORDER BY ct.time_start
+              """
+        params = (username,) # Use username
+        cursor.execute(sql, params)
+        updated_schedule = cursor.fetchall()
+        return jsonify(success=True, schedule=updated_schedule), 200  # Return the updated schedule
+
     except mysql.connector.Error as e:
+        conn.rollback()
         print(f"Error dropping: {e}")
-        return jsonify(success=False, error="Database error"), 500
+        error_message = f"Database error during drop: {e}"
+        print(error_message)
+        return jsonify(success=False, error=error_message), 500
     finally:
         if cursor:
             cursor.close()
-        if conn:
-            conn.close()
-
+        # if conn: #Removed, connections are handled by the application context.
+        #     conn.close()
+        pass
 
 if __name__ == "__main__":
     app.run(debug=False)
