@@ -48,6 +48,10 @@
             box-sizing: border-box;
             margin-bottom: 15px;
         }
+        .passcode-container {
+            display: none; /* Initially hidden */
+            margin-bottom: 15px;
+        }
         button[type="submit"] {
             background-color: #007bff;
             color: white;
@@ -67,7 +71,6 @@
         }
     </style>
     <link rel="stylesheet" href="../static/styles/main.css">
-
 </head>
 <body>
 <div class="topnav">
@@ -97,16 +100,32 @@
             </div>
             <div class="form-group">
                 <label for="role">Role:</label>
-                <select class="role-select" id="role" name="role" required>
+                <select class="role-select" id="role" name="role" required onchange="togglePasscode()">
                     <option value="">-- Select Role --</option>
                     <option value="student">Student</option>
-                    <option value="faculty">Instructor</option>
+                    <option value="instructor">Instructor</option>
                 </select>
+            </div>
+            <div class="form-group passcode-container" id="passcode-container">
+                <label for="passcode">Instructor Passcode:</label>
+                <input type="password" id="passcode" name="passcode">
             </div>
             <button type="submit">Login</button>
         </form>
         <p>Don't have an account? <a href="{{ url_for('create_user_route') }}">Create User</a></p>
     </div>
 </div>
+
+<script>
+    function togglePasscode() {
+        const roleSelect = document.getElementById('role');
+        const passcodeContainer = document.getElementById('passcode-container');
+        if (roleSelect.value === 'instructor') {
+            passcodeContainer.style.display = 'block';
+        } else {
+            passcodeContainer.style.display = 'none';
+        }
+    }
+</script>
 </body>
 </html>

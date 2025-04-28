@@ -103,8 +103,16 @@ def authenticate_user(username, password, selected_role):
             user_roles = get_user_roles(username)
             print(f"User roles: {user_roles}")
             if selected_role in user_roles:
-                print("Authentication successful")
-                return True, user['User'], selected_role
+                if selected_role == 'faculty':
+                    if instructor_passcode == "I<3Arfaoui":  # Check the passcode
+                        print("Instructor passcode correct.")
+                        return True, user['User'], selected_role
+                    else:
+                        print("Instructor passcode incorrect.")
+                        return False, None, None
+                else:  #  Student or other role
+                    print("Role is not instructor, or instructor passcode check passed")
+                    return True, user['User'], selected_role
             else:
                 print("Role not found for user")
                 return False, None, None
@@ -188,8 +196,8 @@ def login():
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']
-        success, user_id, user_role = authenticate_user(username, password,
-                                                        role)
+        instructor_passcode = request.form.get('instructor_passcode')  # Get passcode
+        success, user_id, user_role = authenticate_user(username, password, role, instructor_passcode) # Pass it
         if success:
             session['user_id'] = user_id
             session['role'] = user_role

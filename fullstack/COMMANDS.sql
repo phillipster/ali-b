@@ -16,6 +16,7 @@ GRANT SELECT ON albert.professor TO student;
 GRANT SELECT ON albert.campus TO student;
 GRANT SELECT ON albert.enrollment TO student;
 GRANT SELECT ON albert.department TO student;
+GRANT INSERT, UPDATE, DELETE,SELECT ON albert.enrollment TO student;
 
 CREATE ROLE faculty;
 GRANT SELECT ON albert.courses TO faculty;
